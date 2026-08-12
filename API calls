@@ -1,0 +1,1431 @@
+"-----------------------------------------------------------------------
+" Object Name   : ZR2RN_GL_PARK_POST_INT_TOP
+" Object Title  : Include for Global Data Declarations
+" WRICEF ID     : R2R_E0118
+" Author        : Kshitiz Tyagi / TYAGIK
+" Date          : 12-DEC-2025
+"-----------------------------------------------------------------------
+" Description  : Interface to upload G/L line items into SAP and
+"                Park/Post G/L documents
+"-----------------------------------------------------------------------
+" Copy of Standard SAP Object : No
+" Includes                   : None
+" Tables Used                : None
+"-----------------------------------------------------------------------
+
+*&---------------------------------------------------------------------*
+*&                              TYPE POOLS                             *
+*&---------------------------------------------------------------------*
+TYPE-POOLS:
+  abap,   " ABAP type pool
+  slis.   " ALV (SLIS) type pool
+
+*&---------------------------------------------------------------------*
+*&                              CONSTANTS                              *
+*&---------------------------------------------------------------------*
+
+" Alphabet constants (used for dynamic component handling / Excel cols)
+CONSTANTS:
+  gc_alpha_a TYPE char1 VALUE 'A',
+  gc_alpha_b TYPE char1 VALUE 'B',
+  gc_alpha_c TYPE char1 VALUE 'C',
+  gc_alpha_d TYPE char1 VALUE 'D',
+  gc_alpha_e TYPE char1 VALUE 'E',
+  gc_alpha_f TYPE char1 VALUE 'F',
+  gc_alpha_g TYPE char1 VALUE 'G',
+  gc_alpha_h TYPE char1 VALUE 'H',
+  gc_alpha_i TYPE char1 VALUE 'I',
+  gc_alpha_j TYPE char1 VALUE 'J',
+  gc_alpha_k TYPE char1 VALUE 'K',
+  gc_alpha_l TYPE char1 VALUE 'L',
+  gc_alpha_m TYPE char1 VALUE 'M',
+  gc_alpha_n TYPE char1 VALUE 'N',
+  gc_alpha_o TYPE char1 VALUE 'O',
+  gc_alpha_p TYPE char1 VALUE 'P',
+  gc_alpha_q TYPE char1 VALUE 'Q',
+  gc_alpha_r TYPE char1 VALUE 'R',
+  gc_alpha_s TYPE char1 VALUE 'S',
+  gc_alpha_t TYPE char1 VALUE 'T',
+  gc_alpha_u TYPE char1 VALUE 'U',
+  gc_alpha_v TYPE char1 VALUE 'V',
+  gc_alpha_w TYPE char1 VALUE 'W',
+  gc_alpha_x TYPE char1 VALUE 'X',
+  gc_alpha_y TYPE char1 VALUE 'Y',
+  gc_alpha_z TYPE char1 VALUE 'Z'.
+
+" Generic constants
+CONSTANTS:
+  gc_pipe       TYPE char1               VALUE '|',     " File delimiter
+  gc_err        TYPE char1               VALUE 'E',     " Error message type
+  gc_abort      TYPE char1               VALUE 'A',     " Abort message type
+  gc_i          TYPE char1               VALUE 'I',     " Information
+  gc_success    TYPE char1               VALUE 'S',     " Success message type
+  gc_eq         TYPE char2               VALUE 'EQ',    " Equal operator
+  gc_prdha      TYPE fieldname           VALUE 'PRDHA', " Product hierarchy
+  gc_doc_status TYPE bapi_acc_doc_status VALUE '3',     " Document status
+  gc_dest       TYPE char4               VALUE 'NONE'.  " RFC destination
+
+*&---------------------------------------------------------------------*
+*&                              TYPES                                  *
+*&---------------------------------------------------------------------*
+
+" Flat file data structure (Excel / CSV)
+TYPES: BEGIN OF gy_data,
+         field1  TYPE char50,
+         field2  TYPE char50,
+         field3  TYPE char50,
+         field4  TYPE char50,
+         field5  TYPE char50,
+         field6  TYPE char50,
+         field7  TYPE char50,
+         field8  TYPE char50,
+         field9  TYPE char50,
+         field10 TYPE char50,
+         field11 TYPE char50,
+         field12 TYPE char50,
+         field13 TYPE char50,
+         field14 TYPE char50,
+         field15 TYPE char50,
+         field16 TYPE char50,
+         field17 TYPE char50,
+         field18 TYPE char50,
+         field19 TYPE char50,
+         field20 TYPE char50,
+         field21 TYPE char50,
+         field22 TYPE char50,
+         field23 TYPE char50,
+         field24 TYPE char50,
+         field25 TYPE char50,
+         field26 TYPE char50,
+       END OF gy_data,
+       gy_t_data TYPE STANDARD TABLE OF gy_data.
+
+" G/L Account Master (Company Code level)
+TYPES: BEGIN OF gy_skb1,
+         bukrs TYPE bukrs, " Company Code
+         saknr TYPE saknr, " G/L Account
+         xintb TYPE xintb, " Line item display indicator
+       END OF gy_skb1,
+       gy_t_skb1 TYPE STANDARD TABLE OF gy_skb1.
+
+" Company Code master
+TYPES: BEGIN OF gy_t001,
+         bukrs TYPE bukrs, " Company Code
+         land1 TYPE land1, " Country
+         waers TYPE waers, " Currency
+       END OF gy_t001,
+       gy_t_t001 TYPE STANDARD TABLE OF gy_t001.
+
+" Upload line (raw string)
+TYPES: BEGIN OF gy_upload,
+         line TYPE string,
+       END OF gy_upload.
+
+" BAPI return structure
+TYPES: BEGIN OF gy_bapiret,
+         journal_id TYPE char16,  " Journal ID
+         messtyp    TYPE char1,   " Message type (S/E)
+         belnr      TYPE belnr_d, " Document number
+         bukrs      TYPE bukrs,   " Company Code
+         gjahr      TYPE gjahr,   " Fiscal year
+         message    TYPE char255, " Message text
+       END OF gy_bapiret,
+       gy_t_bapiret TYPE STANDARD TABLE OF gy_bapiret.
+
+" Tax code determination
+TYPES: BEGIN OF gy_t007v,
+         aland TYPE aland, " Departure country
+         mwskz TYPE mwskz, " Tax code
+         txjcd TYPE txjcd, " Tax jurisdiction
+         kschl TYPE kschl, " Condition type
+         kbetr TYPE kbetr, " Rate
+         datum TYPE datum, " Date
+       END OF gy_t007v,
+       gy_t_t007v TYPE STANDARD TABLE OF gy_t007v.
+
+" G/L account determination
+TYPES: BEGIN OF gy_t030k,
+         ktopl TYPE ktopl, " Chart of accounts
+         ktosl TYPE ktosl, " Transaction key
+         mwskz TYPE mwskz, " Tax code
+         konts TYPE saknr, " G/L account
+       END OF gy_t030k,
+       gy_t_t030k TYPE STANDARD TABLE OF gy_t030k.
+
+" TVARVC - default values
+TYPES: BEGIN OF gy_tvarvc,
+         name TYPE rvari_vnam, " Variable name
+         sign TYPE tvarv_sign, " Sign
+         opti TYPE tvarv_opti, " Option
+         low  TYPE tvarv_val,  " Low value
+         high TYPE tvarv_val,  " High value
+       END OF gy_tvarvc,
+       gy_t_tvarvc TYPE STANDARD TABLE OF gy_tvarvc.
+
+*&---------------------------------------------------------------------*
+*&                              DATA                                   *
+*&---------------------------------------------------------------------*
+
+" Internal tables
+DATA:
+  gt_data   TYPE gy_t_data,    " Flat file data
+  gt_tvarvc TYPE gy_t_tvarvc,  " Default values
+  gt_skb1   TYPE gy_t_skb1,    " G/L account master
+  gt_t001   TYPE gy_t_t001.    " Company codes
+
+" Counters
+DATA:
+  gv_total_docs TYPE i, " Total documents
+  gv_total_succ TYPE i, " Successful documents
+  gv_total_fail TYPE i, " Failed documents
+  gv_count_tmp  TYPE i. " Documents per file
+
+" Global variables
+DATA:
+  gv_directory TYPE localfile, " Application server directory
+  gv_grp_curr  TYPE waers.     " Group currency
+
+" Task identification
+DATA lv_task_id TYPE char32 VALUE 'MJE_FOR_SPLIT_DOC'.
+
+
+
+
+----------------------------------------------------------------------------------------------------
+
+REPORT zr2rr_gl_park_post_interface MESSAGE-ID zr2r_msg.
+
+*---------------------------------------------------------------------*
+*  Declarations
+*---------------------------------------------------------------------*
+INCLUDE zr2rn_gl_park_post_int_top.
+
+*---------------------------------------------------------------------*
+*  Selection Screen
+*---------------------------------------------------------------------*
+INCLUDE zr2rn_gl_park_post_int_s01.
+
+*---------------------------------------------------------------------*
+*  Processing Routines
+*---------------------------------------------------------------------*
+INCLUDE zr2rn_gl_park_post_int_f01.
+
+*---------------------------------------------------------------------*
+*  Initialization
+*---------------------------------------------------------------------*
+INITIALIZATION.
+  " Default values
+  PERFORM sub_get_default_values.
+
+*---------------------------------------------------------------------*
+*  Dynamic Screen Handling
+*---------------------------------------------------------------------*
+AT SELECTION-SCREEN OUTPUT.
+  " Field control
+  PERFORM sub_screen_modify.
+
+*---------------------------------------------------------------------*
+*  Value Help (F4)
+*---------------------------------------------------------------------*
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_pres.
+  " Presentation server
+  PERFORM sub_f4_pres_file.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_apps.
+  " Application server
+  PERFORM sub_f4_app_file.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_dpath.
+  " Download path
+  PERFORM sub_f4_downpath.
+
+*---------------------------------------------------------------------*
+*  Input Validation
+*---------------------------------------------------------------------*
+AT SELECTION-SCREEN.
+  " Validate inputs
+  PERFORM sub_validate_sscreen.
+
+*---------------------------------------------------------------------*
+*  Main Execution
+*---------------------------------------------------------------------*
+START-OF-SELECTION  
+
+  IF p_down IS INITIAL.
+    " Data extraction
+    PERFORM sub_get_data.
+
+    IF gt_data IS NOT INITIAL.
+      " File processing
+      PERFORM sub_process_file.
+    ENDIF.
+
+  ELSE.
+    " Template generation
+    PERFORM sub_generate_template.
+  ENDIF.
+
+
+---------------------------------------------------------------------------------------------
+
+"-----------------------------------------------------------------------
+" Object Name   : ZR2RN_GL_PARK_POST_INT_TOP
+" Object Title  : Include for Global Data Declarations
+" WRICEF ID     : R2R_E0118
+" Author        : Kshitiz Tyagi / TYAGIK
+" Date          : 12-DEC-2025
+"-----------------------------------------------------------------------
+" Description  : Interface to upload G/L line items into SAP and
+"                Park/Post G/L documents
+"-----------------------------------------------------------------------
+" Copy of Standard SAP Object : No
+" Includes                   : None
+" Tables Used                : None
+"-----------------------------------------------------------------------
+
+*&---------------------------------------------------------------------*
+*&                              TYPE POOLS                             *
+*&---------------------------------------------------------------------*
+TYPE-POOLS:
+  abap,   " ABAP type pool
+  slis.   " ALV (SLIS) type pool
+
+*&---------------------------------------------------------------------*
+*&                              CONSTANTS                              *
+*&---------------------------------------------------------------------*
+
+" Alphabet constants (used for dynamic component handling / Excel cols)
+CONSTANTS:
+  gc_alpha_a TYPE char1 VALUE 'A',
+  gc_alpha_b TYPE char1 VALUE 'B',
+  gc_alpha_c TYPE char1 VALUE 'C',
+  gc_alpha_d TYPE char1 VALUE 'D',
+  gc_alpha_e TYPE char1 VALUE 'E',
+  gc_alpha_f TYPE char1 VALUE 'F',
+  gc_alpha_g TYPE char1 VALUE 'G',
+  gc_alpha_h TYPE char1 VALUE 'H',
+  gc_alpha_i TYPE char1 VALUE 'I',
+  gc_alpha_j TYPE char1 VALUE 'J',
+  gc_alpha_k TYPE char1 VALUE 'K',
+  gc_alpha_l TYPE char1 VALUE 'L',
+  gc_alpha_m TYPE char1 VALUE 'M',
+  gc_alpha_n TYPE char1 VALUE 'N',
+  gc_alpha_o TYPE char1 VALUE 'O',
+  gc_alpha_p TYPE char1 VALUE 'P',
+  gc_alpha_q TYPE char1 VALUE 'Q',
+  gc_alpha_r TYPE char1 VALUE 'R',
+  gc_alpha_s TYPE char1 VALUE 'S',
+  gc_alpha_t TYPE char1 VALUE 'T',
+  gc_alpha_u TYPE char1 VALUE 'U',
+  gc_alpha_v TYPE char1 VALUE 'V',
+  gc_alpha_w TYPE char1 VALUE 'W',
+  gc_alpha_x TYPE char1 VALUE 'X',
+  gc_alpha_y TYPE char1 VALUE 'Y',
+  gc_alpha_z TYPE char1 VALUE 'Z'.
+
+" Generic constants
+CONSTANTS:
+  gc_pipe       TYPE char1               VALUE '|',     " File delimiter
+  gc_err        TYPE char1               VALUE 'E',     " Error message type
+  gc_abort      TYPE char1               VALUE 'A',     " Abort message type
+  gc_i          TYPE char1               VALUE 'I',     " Information
+  gc_success    TYPE char1               VALUE 'S',     " Success message type
+  gc_eq         TYPE char2               VALUE 'EQ',    " Equal operator
+  gc_prdha      TYPE fieldname           VALUE 'PRDHA', " Product hierarchy
+  gc_doc_status TYPE bapi_acc_doc_status VALUE '3',     " Document status
+  gc_dest       TYPE char4               VALUE 'NONE'.  " RFC destination
+
+*&---------------------------------------------------------------------*
+*&                              TYPES                                  *
+*&---------------------------------------------------------------------*
+
+" Flat file data structure (Excel / CSV)
+TYPES: BEGIN OF gy_data,
+         field1  TYPE char50,
+         field2  TYPE char50,
+         field3  TYPE char50,
+         field4  TYPE char50,
+         field5  TYPE char50,
+         field6  TYPE char50,
+         field7  TYPE char50,
+         field8  TYPE char50,
+         field9  TYPE char50,
+         field10 TYPE char50,
+         field11 TYPE char50,
+         field12 TYPE char50,
+         field13 TYPE char50,
+         field14 TYPE char50,
+         field15 TYPE char50,
+         field16 TYPE char50,
+         field17 TYPE char50,
+         field18 TYPE char50,
+         field19 TYPE char50,
+         field20 TYPE char50,
+         field21 TYPE char50,
+         field22 TYPE char50,
+         field23 TYPE char50,
+         field24 TYPE char50,
+         field25 TYPE char50,
+         field26 TYPE char50,
+       END OF gy_data,
+       gy_t_data TYPE STANDARD TABLE OF gy_data.
+
+" G/L Account Master (Company Code level)
+TYPES: BEGIN OF gy_skb1,
+         bukrs TYPE bukrs, " Company Code
+         saknr TYPE saknr, " G/L Account
+         xintb TYPE xintb, " Line item display indicator
+       END OF gy_skb1,
+       gy_t_skb1 TYPE STANDARD TABLE OF gy_skb1.
+
+" Company Code master
+TYPES: BEGIN OF gy_t001,
+         bukrs TYPE bukrs, " Company Code
+         land1 TYPE land1, " Country
+         waers TYPE waers, " Currency
+       END OF gy_t001,
+       gy_t_t001 TYPE STANDARD TABLE OF gy_t001.
+
+" Upload line (raw string)
+TYPES: BEGIN OF gy_upload,
+         line TYPE string,
+       END OF gy_upload.
+
+" BAPI return structure
+TYPES: BEGIN OF gy_bapiret,
+         journal_id TYPE char16,  " Journal ID
+         messtyp    TYPE char1,   " Message type (S/E)
+         belnr      TYPE belnr_d, " Document number
+         bukrs      TYPE bukrs,   " Company Code
+         gjahr      TYPE gjahr,   " Fiscal year
+         message    TYPE char255, " Message text
+       END OF gy_bapiret,
+       gy_t_bapiret TYPE STANDARD TABLE OF gy_bapiret.
+
+" Tax code determination
+TYPES: BEGIN OF gy_t007v,
+         aland TYPE aland, " Departure country
+         mwskz TYPE mwskz, " Tax code
+         txjcd TYPE txjcd, " Tax jurisdiction
+         kschl TYPE kschl, " Condition type
+         kbetr TYPE kbetr, " Rate
+         datum TYPE datum, " Date
+       END OF gy_t007v,
+       gy_t_t007v TYPE STANDARD TABLE OF gy_t007v.
+
+" G/L account determination
+TYPES: BEGIN OF gy_t030k,
+         ktopl TYPE ktopl, " Chart of accounts
+         ktosl TYPE ktosl, " Transaction key
+         mwskz TYPE mwskz, " Tax code
+         konts TYPE saknr, " G/L account
+       END OF gy_t030k,
+       gy_t_t030k TYPE STANDARD TABLE OF gy_t030k.
+
+" TVARVC - default values
+TYPES: BEGIN OF gy_tvarvc,
+         name TYPE rvari_vnam, " Variable name
+         sign TYPE tvarv_sign, " Sign
+         opti TYPE tvarv_opti, " Option
+         low  TYPE tvarv_val,  " Low value
+         high TYPE tvarv_val,  " High value
+       END OF gy_tvarvc,
+       gy_t_tvarvc TYPE STANDARD TABLE OF gy_tvarvc.
+
+*&---------------------------------------------------------------------*
+*&                              DATA                                   *
+*&---------------------------------------------------------------------*
+
+" Internal tables
+DATA:
+  gt_data   TYPE gy_t_data,    " Flat file data
+  gt_tvarvc TYPE gy_t_tvarvc,  " Default values
+  gt_skb1   TYPE gy_t_skb1,    " G/L account master
+  gt_t001   TYPE gy_t_t001.    " Company codes
+
+" Counters
+DATA:
+  gv_total_docs TYPE i, " Total documents
+  gv_total_succ TYPE i, " Successful documents
+  gv_total_fail TYPE i, " Failed documents
+  gv_count_tmp  TYPE i. " Documents per file
+
+" Global variables
+DATA:
+  gv_directory TYPE localfile, " Application server directory
+  gv_grp_curr  TYPE waers.     " Group currency
+
+" Task identification
+DATA lv_task_id TYPE char32 VALUE 'MJE_FOR_SPLIT_DOC'.
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+      "------------------------------------------------------------
+      " Increase split document counter
+      "------------------------------------------------------------
+      lv_split_doc = lv_split_doc + 1.
+
+      "------------------------------------------------------------
+      " Prepare next receivable line item
+      "------------------------------------------------------------
+      " Increment item number for receivable line
+      lv_item = lv_item + 1.
+
+      " Fill receivable line item details
+      PERFORM sub_fill_receivable
+        USING    lv_item
+                 lv_invoice_amt
+                 <lfs_line_item>
+                 ls_doc_header
+        CHANGING lt_currency
+                 lt_receivable.
+
+      "------------------------------------------------------------
+      " Post accumulated accounting data
+      "------------------------------------------------------------
+      PERFORM sub_action_post_cust
+        USING    ls_doc_header
+                 ls_customercpd
+                 ls_semi_out
+                 lt_accgl
+                 lt_receivable
+                 lt_currency
+                 lv_split_doc
+                 lv_invoice_amt
+        CHANGING lv_rollback.
+
+      "------------------------------------------------------------
+      " Activate split mode for subsequent postings
+      "------------------------------------------------------------
+      lv_split_active = abap_true.
+
+      "------------------------------------------------------------
+      " Reset internal tables and amount variables
+      "------------------------------------------------------------
+      CLEAR: lt_accgl,
+             lt_receivable,
+             lt_currency,
+             lv_invoice_amt.
+
+      "------------------------------------------------------------
+      " Start next posting cycle with current record
+      "------------------------------------------------------------
+      PERFORM sub_fill_item_cust
+        USING    lv_item
+                 <lfs_line_item>
+                 ls_doc_header
+        CHANGING lt_accgl
+                 lt_currency
+                 lv_invoice_amt.
+
+
+--------------------------------------------------------------------------------------
+
+
+
+"-----------------------------------------------------------------------
+" Local constants
+"-----------------------------------------------------------------------
+CONSTANTS:
+  lc_header TYPE char1 VALUE 'H',    " File record type: Header
+  lc_item   TYPE char1 VALUE 'D',    " File record type: Line item
+  lc_debit  TYPE bschl VALUE '40',   " Posting key: Debit
+  lc_credit TYPE bschl VALUE '50',   " Posting key: Credit
+  lc_curr   TYPE char3 VALUE 'USD',  " Default document currency
+  lc_doc_no TYPE c     VALUE '1'.    " Initial document sequence
+
+"-----------------------------------------------------------------------
+" Local variables
+"-----------------------------------------------------------------------
+DATA:
+  ls_return          TYPE gy_bapiret,   " BAPI return structure
+
+  lv_total_amt       TYPE bapiwrbtr,    " Total amount (document currency)
+  lv_total_amt1      TYPE bapiwrbtr,    " Secondary total (negative handling)
+  lv_field4          TYPE bapiwrbtr,    " Temporary amount holder
+  lv_abs_total_new   TYPE bapiwrbtr,    " Absolute total amount
+  lv_amount_conv     TYPE bapiwrbtr,    " Converted amount (document currency)
+  lv_amount_conv1    TYPE bapiwrbtr,    " Converted amount (variant 1)
+  lv_amount_conv2    TYPE bapiwrbtr,    " Converted amount (variant 2)
+
+  lv_total_amt_loc   TYPE bapiwrbtr,    " Total amount (local currency)
+  lv_total_amt_grp   TYPE bapiwrbtr,    " Total amount (group currency)
+  lv_amount_conv_loc TYPE bapiwrbtr,    " Converted amount (local currency)
+  lv_amount_conv_grp TYPE bapiwrbtr,    " Converted amount (group currency)
+
+  lv_no_of_items     TYPE i,            " Number of line items
+  lv_factor          TYPE isoc_factor,  " Conversion factor for non-decimal currencies
+  lv_message         TYPE systring,     " Exception message text
+  lo_root            TYPE REF TO cx_root, " Exception reference
+
+  lv_compcd          TYPE bukrs,        " Company code
+  lv_compcd_curr     TYPE waers,        " Company code currency
+  lv_split_no        TYPE i,            " Document split sequence number
+  lv_fisc_year       TYPE gjahr.        " Fiscal year
+
+
+------------------------------------------------------------------------------------------------------------
+
+FORM sub_generate_tempate.
+
+  TYPES: BEGIN OF lty_file_data,
+           name      TYPE char200,
+           timestamp TYPE char14,
+         END OF lty_file_data.
+
+  DATA: lt_file       TYPE TABLE OF eps2fili,
+        lt_file_data  TYPE STANDARD TABLE OF lty_file_data.
+
+  " Get the value of Directory name
+  CALL FUNCTION 'ZALL_GET_ROOT_DIR'
+    EXPORTING
+      im_wricef             = gc_wricef
+    IMPORTING
+      ex_root_dir           = gv_directory
+    EXCEPTIONS
+      exc_no_root_directory = 1
+      OTHERS                = 2.
+
+  CALL FUNCTION 'EPS2_GET_DIRECTORY_LISTING'
+    EXPORTING
+      iv_dir_name            = gv_directory
+    TABLES
+      dir_list               = lt_file
+    EXCEPTIONS
+      invalid_eps_subdir     = 1
+      sapgparam_failed       = 2
+      build_directory_failed = 3
+      no_authorization       = 4
+      read_directory_failed  = 5
+      too_many_read_errors   = 6
+      empty_directory_list   = 7
+      OTHERS                 = 8.
+
+  IF sy-subrc = 0.
+
+    LOOP AT lt_file INTO DATA(ls_data).
+
+      IF ls_data-size > 0.
+        lt_file_data = VALUE #(
+          BASE lt_file_data
+          (
+            name      = ls_data-name
+            timestamp = |{ ls_data-mtim+6(4) }{ ls_data-mtim+3(2) }{ ls_data-mtim+0(2) }|
+                        && |{ ls_data-mtim+11(2) }{ ls_data-mtim+14(2) }{ ls_data-mtim+17(2) }|
+          )
+        ).
+      ENDIF.
+
+    ENDLOOP.
+
+    IF lt_file_data IS NOT INITIAL.
+
+      SORT lt_file_data BY timestamp DESCENDING.
+
+      DATA(lv_template_name) =
+        VALUE #( lt_file_data[ 1 ]-name OPTIONAL ).
+
+      IF lv_template_name IS NOT INITIAL.
+        " further processing
+      ENDIF.
+
+    ENDIF.
+
+  ENDIF.
+
+ENDFORM.
+
+
+------------------------------------------------------------------------------------------------------------------------------
+
+FORM sub_get_gata.
+
+  DATA:
+    lv_xstring   TYPE xstring,                     "Excel file as XSTRING
+    lo_excel     TYPE REF TO cl_fdt_xl_spreadsheet, "Excel handler
+    lv_sheet_no  TYPE numc1 VALUE '1',              "Worksheet index
+    lt_worksheet TYPE STANDARD TABLE OF string.     "Worksheet names
+
+  "Fetch Excel binary data
+  PERFORM sub_data_pres
+    CHANGING
+      lv_xstring.
+
+  "Process Excel only if data is available
+  IF sy-subrc = 0
+     AND lv_xstring IS NOT INITIAL.
+
+    lo_excel = NEW cl_fdt_xl_spreadsheet(
+                  document_name = 'FILE'
+                  xdocument     = lv_xstring ).
+
+    "Get worksheet names
+    lo_excel->if_fdt_doc_spreadsheet~get_worksheet_names(
+      IMPORTING
+        worksheet_names = lt_worksheet ).
+
+    "Determine worksheet name
+    DATA(lv_sheet) =
+      VALUE #( lt_worksheet[ lv_sheet_no ] OPTIONAL ).
+
+    "Read Excel data into dynamic internal table
+    gt_excel_table =
+      lo_excel->if_fdt_doc_spreadsheet~get_itab_from_worksheet(
+        lv_sheet ).
+
+    IF sy-subrc = 0.
+
+      "Process based on Customer / Supplier selection
+      IF p_cus = abap_true.
+        PERFORM sub_extract_file_cust.
+      ELSE.
+        PERFORM sub_extract_file_supp.
+      ENDIF.
+
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+
+
+-------------------------------------------------------------------------------------------------------------
+
+CONSTANTS:
+  lc_wricef     TYPE char10 VALUE 'R2R/E0118', " WRICEF Name
+  lc_group_app  TYPE char3  VALUE 'M2',        " Application Server group
+  lc_group_prs  TYPE char3  VALUE 'M3',        " Presentation Server group
+  lc_group_down TYPE char3  VALUE 'M4'.        " Download-only group
+
+" Determine which screen group should be disabled
+DATA(lv_disable_group) = COND char3(
+                           WHEN p_rapps  = abap_true THEN lc_group_prs
+                           WHEN p_rpres  = abap_true THEN lc_group_app
+                           ELSE space ).
+
+"---------------------------------------------------------------
+" Disable alternate path selection
+" - If Application Server is selected → disable Presentation path
+" - If Presentation Server is selected → disable Application path
+"---------------------------------------------------------------
+IF lv_disable_group IS NOT INITIAL.
+  LOOP AT SCREEN.
+    IF screen-group1 = lv_disable_group.
+      screen-active = 0.
+      CLEAR:
+        p_pres,
+        p_apps.
+      MODIFY SCREEN.
+    ENDIF.
+  ENDLOOP.
+ENDIF.
+
+"---------------------------------------------------------------
+" Download mode:
+" - Enable only download-related fields
+" - Disable all other input fields
+"---------------------------------------------------------------
+IF p_down IS NOT INITIAL.
+  LOOP AT SCREEN.
+    IF screen-group1 <> lc_group_down.
+      screen-input = 0.
+      CLEAR:
+        p_pres,
+        p_apps,
+        p_newko,
+        p_email,
+        p_test.
+      MODIFY SCREEN.
+    ENDIF.
+  ENDLOOP.
+ENDIF.
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+
+"---------------------------------------------------------------
+" Upload file based on selected execution mode
+"---------------------------------------------------------------
+IF p_rapps = abap_true.
+
+  " Application Server upload
+  IF p_apps IS INITIAL.
+    MESSAGE e000 WITH TEXT-009.
+  ENDIF.
+
+  PERFORM sub_data_apps CHANGING lv_xstring.
+
+ELSEIF p_rpres = abap_true.
+
+  " Presentation Server upload not allowed in background
+  IF sy-batch = abap_true.
+    MESSAGE e000 WITH TEXT-026.
+  ENDIF.
+
+  " Presentation Server file path mandatory
+  IF p_pres IS INITIAL.
+    MESSAGE e000 WITH TEXT-010.
+  ENDIF.
+
+  PERFORM sub_data_pres CHANGING lv_xstring.
+
+ENDIF.
+
+----------------------------------------------------------------------------------------------------------------
+
+"-----------------------------------------------------------------------
+" Execution Mode
+"-----------------------------------------------------------------------
+SELECTION-SCREEN BEGIN OF BLOCK b_exec WITH FRAME TITLE TEXT-001.
+  PARAMETERS:
+    p_rapps TYPE char1 RADIOBUTTON GROUP rg1
+            USER-COMMAND u1 DEFAULT 'X',   "Application Server
+    p_rpres TYPE char1 RADIOBUTTON GROUP rg1. "Presentation Server
+SELECTION-SCREEN END OF BLOCK b_exec.
+
+
+"-----------------------------------------------------------------------
+" File Input Details
+"-----------------------------------------------------------------------
+SELECTION-SCREEN BEGIN OF BLOCK b_file WITH FRAME TITLE TEXT-002.
+  PARAMETERS:
+    p_apps TYPE rlgrap-filename LOWER CASE MODIF ID m2,  "App Server File
+    p_pres TYPE rlgrap-filename LOWER CASE MODIF ID m3.  "Presentation Server File
+SELECTION-SCREEN END OF BLOCK b_file.
+
+
+"-----------------------------------------------------------------------
+" Business Parameters
+"-----------------------------------------------------------------------
+SELECTION-SCREEN BEGIN OF BLOCK b_bus WITH FRAME TITLE TEXT-003.
+  PARAMETERS:
+    p_newko TYPE saknr,        "G/L Account
+    p_email TYPE ad_smtpadr.   "Email ID
+SELECTION-SCREEN END OF BLOCK b_bus.
+
+
+"-----------------------------------------------------------------------
+" Output & Control Options
+"-----------------------------------------------------------------------
+SELECTION-SCREEN BEGIN OF BLOCK b_ctrl WITH FRAME TITLE TEXT-004.
+  PARAMETERS:
+    p_test  TYPE char1 AS CHECKBOX DEFAULT 'X',  "Test Run
+    p_down  TYPE char1 AS CHECKBOX DEFAULT 'X',  "Download Template
+    p_dpath TYPE rlgrap-filename LOWER CASE MODIF ID m4. "Download Path
+SELECTION-SCREEN END OF BLOCK b_ctrl.
+
+
+TEXT-001 = Execution Mode
+TEXT-002 = File Selection
+TEXT-003 = Business Parameters
+TEXT-004 = Output & Control
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+"--------------------------------------------------------------------
+" Remove COPA criteria for Balance Sheet GL accounts
+"--------------------------------------------------------------------
+IF ut_accountgl IS NOT INITIAL
+   AND ct_criteria IS NOT INITIAL.
+
+  " Fetch only Balance Sheet GLs (XBILK = 'X')
+  SELECT saknr
+    FROM ska1
+    INTO TABLE @DATA(lt_bs_gl)
+    FOR ALL ENTRIES IN @ut_accountgl
+    WHERE saknr = @ut_accountgl-gl_account
+      AND xbilk = @abap_true.
+
+  IF sy-subrc = 0.
+
+    " Use hashed table for fast lookup
+    DATA lt_bs_gl_h TYPE HASHED TABLE OF saknr
+                    WITH UNIQUE KEY table_line.
+    lt_bs_gl_h = CORRESPONDING #( lt_bs_gl ).
+
+    LOOP AT ut_accountgl INTO DATA(ls_accountgl).
+      IF line_exists( lt_bs_gl_h[ table_line = ls_accountgl-gl_account ] ).
+        DELETE ct_criteria
+          WHERE itemno_acc = ls_accountgl-itemno_acc.
+      ENDIF.
+    ENDLOOP.
+
+  ENDIF.
+ENDIF.
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+"-----------------------------------------------------------------------
+" Object Name   : ZR2RN_GL_PARK_POST_INT_TOP
+" Object Title  : Include for Global Data Declarations
+" WRICEF ID     : R2R_E0118
+" Author        : Kshitiz Tyagi / TYAGIK
+" Date          : 12-DEC-2025
+"-----------------------------------------------------------------------
+" Description  : Interface to upload G/L line items into SAP and
+"                Park/Post G/L documents
+"-----------------------------------------------------------------------
+" Copy of Standard SAP Object : No
+" Includes                   : None
+" Tables Used                : None
+"-----------------------------------------------------------------------
+
+*&---------------------------------------------------------------------*
+*&                              TYPE POOLS                             *
+*&---------------------------------------------------------------------*
+TYPE-POOLS:
+  abap,   " ABAP type pool
+  slis.   " ALV (SLIS) type pool
+
+*&---------------------------------------------------------------------*
+*&                              CONSTANTS                              *
+*&---------------------------------------------------------------------*
+
+" Alphabet constants (used for dynamic component handling / Excel cols)
+CONSTANTS:
+  gc_alpha_a TYPE char1 VALUE 'A',
+  gc_alpha_b TYPE char1 VALUE 'B',
+  gc_alpha_c TYPE char1 VALUE 'C',
+  gc_alpha_d TYPE char1 VALUE 'D',
+  gc_alpha_e TYPE char1 VALUE 'E',
+  gc_alpha_f TYPE char1 VALUE 'F',
+  gc_alpha_g TYPE char1 VALUE 'G',
+  gc_alpha_h TYPE char1 VALUE 'H',
+  gc_alpha_i TYPE char1 VALUE 'I',
+  gc_alpha_j TYPE char1 VALUE 'J',
+  gc_alpha_k TYPE char1 VALUE 'K',
+  gc_alpha_l TYPE char1 VALUE 'L',
+  gc_alpha_m TYPE char1 VALUE 'M',
+  gc_alpha_n TYPE char1 VALUE 'N',
+  gc_alpha_o TYPE char1 VALUE 'O',
+  gc_alpha_p TYPE char1 VALUE 'P',
+  gc_alpha_q TYPE char1 VALUE 'Q',
+  gc_alpha_r TYPE char1 VALUE 'R',
+  gc_alpha_s TYPE char1 VALUE 'S',
+  gc_alpha_t TYPE char1 VALUE 'T',
+  gc_alpha_u TYPE char1 VALUE 'U',
+  gc_alpha_v TYPE char1 VALUE 'V',
+  gc_alpha_w TYPE char1 VALUE 'W',
+  gc_alpha_x TYPE char1 VALUE 'X',
+  gc_alpha_y TYPE char1 VALUE 'Y',
+  gc_alpha_z TYPE char1 VALUE 'Z'.
+
+" Generic constants
+CONSTANTS:
+  gc_pipe       TYPE char1               VALUE '|',     " File delimiter
+  gc_err        TYPE char1               VALUE 'E',     " Error message type
+  gc_abort      TYPE char1               VALUE 'A',     " Abort message type
+  gc_i          TYPE char1               VALUE 'I',     " Information
+  gc_success    TYPE char1               VALUE 'S',     " Success message type
+  gc_eq         TYPE char2               VALUE 'EQ',    " Equal operator
+  gc_prdha      TYPE fieldname           VALUE 'PRDHA', " Product hierarchy
+  gc_doc_status TYPE bapi_acc_doc_status VALUE '3',     " Document status
+  gc_dest       TYPE char4               VALUE 'NONE'.  " RFC destination
+
+*&---------------------------------------------------------------------*
+*&                              TYPES                                  *
+*&---------------------------------------------------------------------*
+
+" Flat file data structure (Excel / CSV)
+TYPES: BEGIN OF gy_data,
+         field1  TYPE char50,
+         field2  TYPE char50,
+         field3  TYPE char50,
+         field4  TYPE char50,
+         field5  TYPE char50,
+         field6  TYPE char50,
+         field7  TYPE char50,
+         field8  TYPE char50,
+         field9  TYPE char50,
+         field10 TYPE char50,
+         field11 TYPE char50,
+         field12 TYPE char50,
+         field13 TYPE char50,
+         field14 TYPE char50,
+         field15 TYPE char50,
+         field16 TYPE char50,
+         field17 TYPE char50,
+         field18 TYPE char50,
+         field19 TYPE char50,
+         field20 TYPE char50,
+         field21 TYPE char50,
+         field22 TYPE char50,
+         field23 TYPE char50,
+         field24 TYPE char50,
+         field25 TYPE char50,
+         field26 TYPE char50,
+       END OF gy_data,
+       gy_t_data TYPE STANDARD TABLE OF gy_data.
+
+" G/L Account Master (Company Code level)
+TYPES: BEGIN OF gy_skb1,
+         bukrs TYPE bukrs, " Company Code
+         saknr TYPE saknr, " G/L Account
+         xintb TYPE xintb, " Line item display indicator
+       END OF gy_skb1,
+       gy_t_skb1 TYPE STANDARD TABLE OF gy_skb1.
+
+" Company Code master
+TYPES: BEGIN OF gy_t001,
+         bukrs TYPE bukrs, " Company Code
+         land1 TYPE land1, " Country
+         waers TYPE waers, " Currency
+       END OF gy_t001,
+       gy_t_t001 TYPE STANDARD TABLE OF gy_t001.
+
+" Upload line (raw string)
+TYPES: BEGIN OF gy_upload,
+         line TYPE string,
+       END OF gy_upload.
+
+" BAPI return structure
+TYPES: BEGIN OF gy_bapiret,
+         journal_id TYPE char16,  " Journal ID
+         messtyp    TYPE char1,   " Message type (S/E)
+         belnr      TYPE belnr_d, " Document number
+         bukrs      TYPE bukrs,   " Company Code
+         gjahr      TYPE gjahr,   " Fiscal year
+         message    TYPE char255, " Message text
+       END OF gy_bapiret,
+       gy_t_bapiret TYPE STANDARD TABLE OF gy_bapiret.
+
+" Tax code determination
+TYPES: BEGIN OF gy_t007v,
+         aland TYPE aland, " Departure country
+         mwskz TYPE mwskz, " Tax code
+         txjcd TYPE txjcd, " Tax jurisdiction
+         kschl TYPE kschl, " Condition type
+         kbetr TYPE kbetr, " Rate
+         datum TYPE datum, " Date
+       END OF gy_t007v,
+       gy_t_t007v TYPE STANDARD TABLE OF gy_t007v.
+
+" G/L account determination
+TYPES: BEGIN OF gy_t030k,
+         ktopl TYPE ktopl, " Chart of accounts
+         ktosl TYPE ktosl, " Transaction key
+         mwskz TYPE mwskz, " Tax code
+         konts TYPE saknr, " G/L account
+       END OF gy_t030k,
+       gy_t_t030k TYPE STANDARD TABLE OF gy_t030k.
+
+" TVARVC - default values
+TYPES: BEGIN OF gy_tvarvc,
+         name TYPE rvari_vnam, " Variable name
+         sign TYPE tvarv_sign, " Sign
+         opti TYPE tvarv_opti, " Option
+         low  TYPE tvarv_val,  " Low value
+         high TYPE tvarv_val,  " High value
+       END OF gy_tvarvc,
+       gy_t_tvarvc TYPE STANDARD TABLE OF gy_tvarvc.
+
+*&---------------------------------------------------------------------*
+*&                              DATA                                   *
+*&---------------------------------------------------------------------*
+
+" Internal tables
+DATA:
+  gt_data   TYPE gy_t_data,    " Flat file data
+  gt_tvarvc TYPE gy_t_tvarvc,  " Default values
+  gt_skb1   TYPE gy_t_skb1,    " G/L account master
+  gt_t001   TYPE gy_t_t001.    " Company codes
+
+" Counters
+DATA:
+  gv_total_docs TYPE i, " Total documents
+  gv_total_succ TYPE i, " Successful documents
+  gv_total_fail TYPE i, " Failed documents
+  gv_count_tmp  TYPE i. " Documents per file
+
+" Global variables
+DATA:
+  gv_directory TYPE localfile, " Application server directory
+  gv_grp_curr  TYPE waers.     " Group currency
+
+" Task identification
+DATA lv_task_id TYPE char32 VALUE 'MJE_FOR_SPLIT_DOC'.
+
+----------------------------------------------------------------------------------------------------------
+
+*&---------------------------------------------------------------------*
+*& Form  SUB_GET_DATA
+*&---------------------------------------------------------------------*
+FORM sub_get_data.
+
+  "Raw Excel row (A–Z)
+  TYPES: BEGIN OF lty_string,
+           a TYPE string,
+           b TYPE string,
+           c TYPE string,
+           d TYPE string,
+           e TYPE string,
+           f TYPE string,
+           g TYPE string,
+           h TYPE string,
+           i TYPE string,
+           j TYPE string,
+           k TYPE string,
+           l TYPE string,
+           m TYPE string,
+           n TYPE string,
+           o TYPE string,
+           p TYPE string,
+           q TYPE string,
+           r TYPE string,
+           s TYPE string,
+           t TYPE string,
+           u TYPE string,
+           v TYPE string,
+           w TYPE string,
+           x TYPE string,
+           y TYPE string,
+           z TYPE string,
+         END OF lty_string.
+
+  "Declarations
+  DATA: lv_xstring   TYPE xstring,
+        lo_excel     TYPE REF TO cl_fdt_xl_spreadsheet,
+        lv_sheet_no  TYPE numc1 VALUE '1',
+        lt_worksheet TYPE STANDARD TABLE OF string.
+
+  FIELD-SYMBOLS <lfs_raw> TYPE STANDARD TABLE.
+
+  "Upload file
+  IF p_rapps = abap_true.
+    PERFORM sub_data_apps CHANGING lv_xstring.
+  ELSE.
+    PERFORM sub_data_pres CHANGING lv_xstring.
+  ENDIF.
+
+  "Process Excel
+  IF sy-subrc = 0 AND lv_xstring IS NOT INITIAL.
+
+    lo_excel = NEW cl_fdt_xl_spreadsheet(
+                  document_name = 'FILE'
+                  xdocument     = lv_xstring ).
+
+    lo_excel->if_fdt_doc_spreadsheet~get_worksheet_names(
+      IMPORTING worksheet_names = lt_worksheet ).
+
+    DATA(lv_sheet) = lt_worksheet[ lv_sheet_no ].
+
+    DATA(lt_excel_table) =
+      lo_excel->if_fdt_doc_spreadsheet~get_itab_from_worksheet( lv_sheet ).
+
+    IF sy-subrc = 0.
+      ASSIGN lt_excel_table->* TO <lfs_raw>.
+
+      gt_data = CORRESPONDING #( <lfs_raw> MAPPING
+                    field1  = a
+                    field2  = b
+                    field3  = c
+                    field4  = d
+                    field5  = e
+                    field6  = f
+                    field7  = g
+                    field8  = h
+                    field9  = i
+                    field10 = j
+                    field11 = k
+                    field12 = l
+                    field13 = m
+                    field14 = n
+                    field15 = o
+                    field16 = p
+                    field17 = q
+                    field18 = r
+                    field19 = s
+                    field20 = t
+                    field21 = u
+                    field22 = v
+                    field23 = w
+                    field24 = x
+                    field25 = y
+                    field26 = z ).
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+
+
+---------------------------------------------------------------------------------------------------------------------
+
+*&---------------------------------------------------------------------*
+*&      Form  SUB_FILL_ITEM
+*&---------------------------------------------------------------------*
+*&      Fills GL item, currency amounts, and CO-PA criteria
+*&      Handles both split and non-split posting scenarios
+*&---------------------------------------------------------------------*
+FORM sub_fill_item
+  USING    us_ls_data        TYPE gy_data
+           uv_itemno         TYPE posnr_acc
+           cv_waers          TYPE waers
+           cv_kursf          TYPE kursf
+           cv_kursf_v        TYPE acpi_ukursm
+           uv_split          TYPE xfeld
+           ut_tvarvc         TYPE gy_t_tvarvc
+           uv_journal_id     TYPE char16
+           ut_skb1           TYPE gy_t_skb1
+           us_documentheader TYPE bapiache09
+           ut_t001           TYPE gy_t_t001
+  CHANGING ct_lt_accountgl   TYPE bapiacgl09_tab
+           ct_lt_curramt     TYPE bapiaccr09_tab
+           cv_total_amount   TYPE bapiwrbtr
+           ct_criteria       TYPE bapiackec9_tab
+           ct_return_tmp     TYPE gy_t_bapiret.
+
+  "--------------------------------------------------------------------*
+  " Local Constants
+  "--------------------------------------------------------------------*
+  CONSTANTS:
+    lc_debit       TYPE bschl      VALUE '40',                  "Debit posting key
+    lc_vkorg       TYPE rvari_vnam VALUE 'ZR2R_E0118_VKORG',
+    lc_vtweg       TYPE rvari_vnam VALUE 'ZR2R_E0118_VTWEG',
+    lc_spart       TYPE rvari_vnam VALUE 'ZR2R_E0118_SPART',
+    lc_kndnr       TYPE rvari_vnam VALUE 'ZR2R_E0118_KNDNR',
+    lc_werks       TYPE rvari_vnam VALUE 'ZR2R_E0118_WERKS',
+    lc_curr_typ_10 TYPE curtp      VALUE '10'.                  "Document currency
+
+  "--------------------------------------------------------------------*
+  " Local Data Declarations
+  "--------------------------------------------------------------------*
+  DATA:
+    ls_accountgl TYPE bapiacgl09,
+    ls_curramt   TYPE bapiaccr09,
+    ls_criteria  TYPE bapiackec9,
+    ls_tvarvc    TYPE gy_tvarvc,
+    lv_linecount TYPE i,
+    lv_amount_10 TYPE bapidoccur.
+
+  "--------------------------------------------------------------------*
+  " Split Posting Logic
+  "--------------------------------------------------------------------*
+  IF uv_split = abap_true.
+
+    lv_linecount = lines( ct_lt_accountgl ).
+    READ TABLE ct_lt_accountgl INTO ls_accountgl INDEX lv_linecount.
+
+    IF sy-subrc = 0.
+
+      " Update GL item for split
+      ls_accountgl-itemno_acc = uv_itemno.
+      ls_accountgl-gl_account = |{ p_newko ALPHA = IN }|.
+
+      " Reverse amount for split posting
+      ls_curramt-amt_doccur = cv_total_amount * -1.
+
+      " Clear total amount after split
+      CLEAR cv_total_amount.
+
+      " Clear fields no longer relevant after split
+      CLEAR:
+        ls_accountgl-bus_area,
+        ls_accountgl-costcenter,
+        ls_accountgl-profit_ctr,
+        ls_accountgl-plant,
+        ls_accountgl-material,
+        ls_accountgl-quantity,
+        ls_accountgl-base_uom.
+
+      " Append updated GL line
+      APPEND ls_accountgl TO ct_lt_accountgl.
+
+      " Currency amount (document currency)
+      lv_amount_10 = ls_curramt-amt_doccur.
+
+      ct_lt_curramt = VALUE #(
+        BASE ct_lt_curramt
+        ( itemno_acc = uv_itemno
+          curr_type  = lc_curr_typ_10
+          currency   = cv_waers
+          amt_doccur = lv_amount_10 ) ).
+
+    ENDIF.
+
+  ELSE.
+
+    "------------------------------------------------------------------*
+    " Non-Split Posting Logic
+    "------------------------------------------------------------------*
+
+    " Basic GL item data
+    ls_accountgl-itemno_acc = uv_itemno.
+    ls_accountgl-alloc_nmbr = us_ls_data-field2.          "Allocation number
+    ls_accountgl-tax_code   = us_ls_data-field7.
+    ls_accountgl-taxjurcode = us_ls_data-field8.
+    ls_accountgl-item_text  = us_ls_data-field9.
+    ls_accountgl-gl_account = |{ us_ls_data-field10 ALPHA = IN }|.
+
+    " Profit Center
+    IF us_ls_data-field11 IS NOT INITIAL.
+      ls_accountgl-profit_ctr = |{ us_ls_data-field11 ALPHA = IN }|.
+    ENDIF.
+
+    " Cost Center
+    IF us_ls_data-field12 IS NOT INITIAL.
+      ls_accountgl-costcenter = |{ us_ls_data-field12 ALPHA = IN }|.
+    ENDIF.
+
+    " Internal Order
+    IF us_ls_data-field13 IS NOT INITIAL.
+      ls_accountgl-orderid = |{ us_ls_data-field13 ALPHA = IN }|.
+    ENDIF.
+
+    " WBS Element
+    IF us_ls_data-field14 IS NOT INITIAL.
+      CALL FUNCTION 'CONVERSION_EXIT_ABPSN_INPUT'
+        EXPORTING
+          input  = us_ls_data-field14
+        IMPORTING
+          output = ls_accountgl-wbs_element.
+    ENDIF.
+
+    " Functional Area
+    ls_accountgl-func_area = us_ls_data-field15.
+
+    " House Bank Account
+    IF us_ls_data-field16 IS NOT INITIAL.
+      ls_accountgl-housebankacctid = us_ls_data-field16.
+    ENDIF.
+
+    " Segment
+    ls_accountgl-segment = us_ls_data-field17.
+
+    " Trade ID
+    IF us_ls_data-field18 IS NOT INITIAL.
+      ls_accountgl-trade_id = |{ us_ls_data-field18 ALPHA = IN }|.
+    ENDIF.
+
+    " Material
+    ls_accountgl-material = |{ us_ls_data-field19 ALPHA = IN }|.
+
+    "------------------------------------------------------------------*
+    " GL Master Validation (SKB1)
+    "------------------------------------------------------------------*
+    READ TABLE ut_skb1 ASSIGNING FIELD-SYMBOL(<lfs_skb1>)
+         WITH KEY bukrs = us_documentheader-comp_code
+                  saknr = ls_accountgl-gl_account
+         BINARY SEARCH.
+
+    IF <lfs_skb1> IS ASSIGNED
+       AND <lfs_skb1>-xintb IS NOT INITIAL.
+
+      " Error: Reconciliation account not allowed
+      APPEND VALUE #(
+        journal_id = uv_journal_id
+        messtyp    = gc_err
+        message    = |{ TEXT-039 }{ <lfs_skb1>-saknr }{ TEXT-040 }{ <lfs_skb1>-bukrs }| )
+        TO ct_return_tmp.
+
+      RETURN.
+    ENDIF.
+
+    "------------------------------------------------------------------*
+    " Amount Calculation
+    "------------------------------------------------------------------*
+    IF us_ls_data-field3 = lc_debit.
+
+      cv_total_amount      += us_ls_data-field4.
+      ls_curramt-amt_doccur = us_ls_data-field4.
+
+    ELSE.
+
+      cv_total_amount      -= us_ls_data-field4.
+      ls_curramt-amt_doccur = us_ls_data-field4 * -1.
+
+    ENDIF.
+
+    "------------------------------------------------------------------*
+    " Currency Amount (Document Currency)
+    "------------------------------------------------------------------*
+    IF line_exists( ut_t001[ bukrs = us_documentheader-comp_code ] ).
+
+      lv_amount_10 = ls_curramt-amt_doccur.
+
+      ct_lt_curramt = VALUE #(
+        BASE ct_lt_curramt
+        ( itemno_acc = uv_itemno
+          curr_type  = lc_curr_typ_10
+          currency   = cv_waers
+          amt_doccur = lv_amount_10 ) ).
+
+    ENDIF.
+
+    "------------------------------------------------------------------*
+    " CO-PA / Additional Criteria
+    "------------------------------------------------------------------*
+
+    " Product Hierarchy
+    IF us_ls_data-field20 IS NOT INITIAL.
+      ls_criteria-fieldname  = gc_prdha.
+      ls_criteria-itemno_acc = uv_itemno.
+      ls_criteria-character  = us_ls_data-field20.
+      APPEND ls_criteria TO ct_criteria.
+      CLEAR ls_criteria.
+    ENDIF.
+
+    " Quantity
+    ls_accountgl-quantity = us_ls_data-field21.
+
+    " Base Unit of Measure
+    IF us_ls_data-field26 IS NOT INITIAL.
+      CALL FUNCTION 'CONVERSION_EXIT_CUNIT_INPUT'
+        EXPORTING
+          input    = us_ls_data-field22
+          language = sy-langu
+        IMPORTING
+          output   = ls_accountgl-base_uom
+        EXCEPTIONS
+          OTHERS   = 2.
+      IF sy-subrc <> 0.
+        CLEAR ls_accountgl-base_uom.
+      ENDIF.
+    ENDIF.
+
+    " Customer
+    IF us_ls_data-field23 IS NOT INITIAL.
+      READ TABLE ut_tvarvc INTO ls_tvarvc
+           WITH KEY name = lc_kndnr
+           BINARY SEARCH.
+      IF sy-subrc = 0.
+        ls_criteria-fieldname  = ls_tvarvc-low.
+        ls_criteria-itemno_acc = uv_itemno.
+        ls_criteria-character  = us_ls_data-field23.
+        APPEND ls_criteria TO ct_criteria.
+        CLEAR: ls_criteria, ls_tvarvc.
+      ENDIF.
+    ENDIF.
+
+    " Plant
+    IF us_ls_data-field24 IS NOT INITIAL.
+      READ TABLE ut_tvarvc INTO ls_tvarvc
+           WITH KEY name = lc_werks
+           BINARY SEARCH.
+      IF sy-subrc = 0.
+        ls_criteria-fieldname  = ls_tvarvc-low.
+        ls_criteria-itemno_acc = uv_itemno.
+        ls_criteria-character  = us_ls_data-field24.
+        APPEND ls_criteria TO ct_criteria.
+        CLEAR: ls_criteria, ls_tvarvc.
+
+        ls_accountgl-plant = us_ls_data-field24.
+      ENDIF.
+    ENDIF.
+
+    " Cross-Company Transaction
+    IF us_ls_data-field25 IS NOT INITIAL.
+      ls_accountgl-cs_trans_t = us_ls_data-field25.
+    ENDIF.
+
+    " House Bank
+    IF us_ls_data-field28 IS NOT INITIAL.
+      ls_accountgl-housebankid = us_ls_data-field28.
+    ENDIF.
+
+    " Append GL item
+    APPEND ls_accountgl TO ct_lt_accountgl.
+    CLEAR ls_accountgl.
+
+  ENDIF.
+
+  CLEAR lv_amount_10.
+
+ENDFORM.
