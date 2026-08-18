@@ -1,0 +1,620 @@
+## Short Answer
+
+Use a **dedicated Z-table keyed by delivery number (VBELN)** as a cross‑reference/mapping table, populated when the External ID IDoc is processed and read (SELECT SINGLE) when the VTTK IDoc is processed to populate `EXTI1`. Avoid header text, avoid the append-to-LIKP approach unless you have a strong reason, and only reuse a standard field if `LIKP-LIFEX` is genuinely unused and semantically matches.
+
+Here's the reasoning, option by option, followed by the implementation pattern.
+
+---
+
+## Evaluating the Options
+
+| Approach | Verdict | Why |
+|---|---|---|
+| **Reuse standard field (LIFEX)** | Conditional yes | `LIKP-LIFEX` ("External delivery ID") is *literally* built for this — it's populated from EDI segment `E1EDL20-LIFEX` in standard inbound delivery IDocs. If it's not already used by another interface in your landscape and your "External ID" really is a delivery-external-system-ID concept, this is the cheapest, most standard-compliant option — zero custom development, visible in standard BAPIs, ALV, table maintenance. But if you've already ruled it out (used elsewhere, wrong semantics, or the ID isn't 1:1 with "external delivery number"), don't force it — repurposing a field for a different meaning than SAP intends is a data-integrity and future-maintenance risk (other standard/EDI logic may read/write it unexpectedly, and OSS notes may change its behavior). |
+| **LIKP header text (STXH/STXL)** | No | Text objects are for unstructured, human-readable notes. Using `READ_TEXT`/`SAVE_TEXT` as a de-facto structured key-value store is an anti-pattern: no type/length validation, no efficient set-based access, poor performance for programmatic reads during IDoc processing, awkward to report on, and easy to accidentally overwrite/lose formatting. Don't use it for something a downstream program depends on for a determinate value. |
+| **Append structure on LIKP (CI_LIKPVB)** | Workable but not ideal here | This is the SAP-sanctioned way to add a persistent field to LIKP, and it's fully upgrade-safe. The concern isn't technical risk — it's fit: the External ID isn't really an intrinsic *attribute* of the delivery (like weight or route); it's a **cross-reference artifact of an integration process**. Bolting integration metadata onto a huge, heavily-used core table (LIKP is read constantly across SD/LE) for a niche, single-purpose lookup is unnecessary coupling. It also runs against Clean Core thinking, which favors side-by-side extensibility over modifying/extending standard structures even via released customer includes, when an equivalent decoupled option exists. |
+| **Z-table keyed by VBELN** | **Recommended** | Matches the actual semantics (a mapping/cross-reference, not a delivery attribute). Doesn't touch LIKP at all — zero risk to standard table performance, buffering, or upgrade footprint. Can carry its own audit fields (source IDoc number, timestamp, processing status) for traceability without polluting LIKP. Trivially fast lookup (single-record read on a small, cleanly-keyed table, easily buffered). Fully isolated, easy to extend later (e.g., multiple external systems per delivery) without any impact on standard objects. This is the pattern SAP itself uses internally for cross-reference/mapping data. |
+
+---
+
+## Is "Persist then Read" the Right Pattern?
+
+Yes — and there isn't a materially better alternative given the constraint that **the two IDocs are separate, asynchronous inbound processes** and EXTI1 isn't part of the VTTK IDoc payload.
+
+The only other theoretical option is to have the VTTK IDoc processing reach back out and query the *originating external system* in real time for the ID — but that:
+- Introduces a synchronous dependency inside IDoc processing (fragile, adds latency, creates a hard coupling between async interfaces).
+- Loses the "already told you this" data SAP received earlier — re-fetching data you were already given is wasteful and untraceable.
+
+So: `Inbound External ID IDoc → persist to Z-table (keyed on VBELN) → Inbound VTTK IDoc → look up VBELN → populate EXTI1` is correct. The only real design question is *where* to persist it — which is the Z-table decision above — and how to handle **sequencing/timing risk**, addressed below.
+
+---
+
+## Recommended Technical Design
+
+### 1. Z-table structure
+
+```
+ZEXT_DELIV_ID
+------------------------------------------------
+MANDT     CLNT   3    (key)
+VBELN     CHAR  10    (key) - delivery number
+EXTSYS    CHAR   4    (key, optional) - source system/partner, if IDs could ever
+                        come from more than one external source per delivery
+EXTID     CHAR  20    - value, sized to match VTTK-EXTI1's domain length
+ERDAT     DATS   8    - creation date
+ERZET     TIMS   6    - creation time
+ERNAM     CHAR  12    - created by (SY-UNAME or IDoc user)
+IDOCNUM   CHAR  16    - source IDoc number (traceability)
+```
+
+Keying on `VBELN` alone is simplest; add `EXTSYS` only if you genuinely expect more than one external ID per delivery. Enable single-record table buffering — access pattern is always a point read on the full key, ideal for buffering.
+
+### 2. Enhancement point #1 — External ID inbound processing
+
+Wherever this IDoc is processed (standard inbound FM with a user exit, or a Z function module if it's a custom basic type):
+
+- After the delivery number is determined/validated, do a `MODIFY ZEXT_DELIV_ID` (not `INSERT`, so reprocessing/corrections don't dump).
+- Don't issue an explicit `COMMIT WORK` inside the IDoc processing FM — let it ride the same LUW/commit that the IDoc framework itself manages (standard `IDOC_INPUT_*` processing typically commits after successful posting). This keeps the Z-table update transactionally consistent with the IDoc's own success/failure — if the IDoc fails and is rolled back, you don't want an orphaned Z-table entry either.
+- Wrap the update in a small function module (e.g., `Z_EXT_DELIV_ID_SAVE`) so both processes call shared, tested logic rather than duplicating `MODIFY` statements.
+
+### 3. Enhancement point #2 — VTTK inbound (shipment) IDoc processing
+
+At the point in your enhancement where the delivery number is already resolved (from the shipment-delivery link segment, e.g. via `VTTP`/`VTPA`-equivalent data in the IDoc, or after the delivery is assigned to the shipment):
+
+```abap
+SELECT SINGLE extid
+  FROM zext_deliv_id
+  INTO @DATA(lv_extid)
+  WHERE vbeln = @lv_vbeln.
+
+IF sy-subrc = 0.
+  vttk-exti1 = lv_extid.
+ELSE.
+  " see race-condition handling below
+ENDIF.
+```
+
+Place this in the same user-exit/BAdI where you're already determining the delivery and just before the shipment header is saved (i.e., before the `BAPI_SHIPMENT_CREATE`/`CHANGE` call, or before the direct table update in the relevant shipment-posting include, depending on how this inbound process is built — standard `IDOC_INPUT_SHPMNT*` exits or a custom Z-IDoc equivalent).
+
+### 4. Handling the sequencing/race condition
+
+This is the one real operational risk in the "persist then read" pattern: if the VTTK IDoc somehow arrives/processes before the External ID IDoc has committed, the lookup returns nothing.
+
+Mitigations (pick based on how the interfaces are architected):
+- If both IDocs flow through the same **qRFC/tRFC inbound queue** keyed by delivery, enforce processing order at the queue level so this can't happen.
+- If ordering can't be guaranteed, don't fail silently — set the IDoc to status **51 (error)** with a clear application log message (SLG1) and let it be reprocessed via `RBDAPP01`/workflow once the mapping exists. This preserves traceability and avoids posting a shipment with a blank/incorrect EXTI1.
+- Optionally add a short existence check as part of your monitoring rather than building complex wait logic into the IDoc FM itself — keep the inbound processing itself simple and let error-handling/reprocessing do the retry.
+
+### 5. Data lifecycle
+
+Since this is integration/cross-reference data rather than master data, consider a simple archiving/deletion job (or TTL logic) once the shipment has successfully picked up the value and downstream processing is confirmed complete — no need to let it grow unbounded.
+
+---
+
+## Why this beats the alternatives against your criteria
+
+- **SAP standard/best practice**: mapping/cross-reference data belongs in its own table, not appended to a core transactional table it doesn't intrinsically describe.
+- **Data ownership/semantics**: the External ID is integration metadata, not a delivery attribute — the Z-table reflects that honestly.
+- **Persistence/traceability**: audit fields (source IDoc, timestamp) give you a clean trail that a single LIKP field can't.
+- **Performance**: no added weight on LIKP (read everywhere in SD/LE); the Z-table is a tiny, buffered, single-key-read table used only where needed.
+- **Avoiding unnecessary changes to standard tables**: no append, no modification to LIKP at all.
+- **Upgradeability/maintainability**: fully isolated custom object; no SPDD/SPAU exposure, no interaction with future SAP-delivered LIKP changes.
+- **Clean Core**: this is the closest you can get to side-by-side extensibility principles while still being native ECC — decoupled custom persistence, standard tables untouched, clear separation between core and extension logic.
+
+The one case where I'd override this recommendation is if `LIKP-LIFEX` is confirmed unused in your landscape and matches the concept exactly — then just use it and skip custom development entirely. Worth a five-minute check with your functional team before building the Z-table.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+===============================
+
+Yes — this is the **critical part of the design**. If the rule is:
+
+> **Only persist the External ID after the first IDoc has successfully processed and the corresponding LIKP update has been successfully committed**
+
+then I would **not blindly `COMMIT WORK` or update the Z-table independently** from your enhancement.
+
+The best approach is to make the Z-table update part of the **same LUW/transaction as the successful LIKP update**, if the standard IDoc processing allows you to hook into that point.
+
+### Recommended sequence
+
+```text
+Inbound External-ID IDoc
+        |
+        v
+Standard IDoc processing
+        |
+        +---- Update LIKP
+        |
+        +---- Other standard processing
+        |
+        v
+Standard processing successful?
+        |
+       YES
+        |
+        v
+Your enhancement
+        |
+        +---- Save External ID → Z-table
+        |
+        v
+Standard IDoc processing
+        |
+        v
+COMMIT WORK
+        |
+        v
+LIKP + Z-table committed together
+```
+
+The important principle is:
+
+> **Don't determine success by checking LIKP after the fact from a separate process. Make the Z-table update participate in the same LUW wherever possible.**
+
+### Why this is better
+
+Suppose the IDoc does this:
+
+```text
+LIKP updated
+Z-table updated
+COMMIT
+```
+
+Both succeed.
+
+But if something fails:
+
+```text
+LIKP updated
+Z-table updated
+ERROR
+ROLLBACK
+```
+
+then **both changes are rolled back**.
+
+You don't end up with:
+
+```text
+LIKP = updated
+Z-table = updated
+```
+
+when the IDoc ultimately goes into error.
+
+---
+
+## The important distinction: IDoc status vs database commit
+
+Be careful with the phrase **"IDoc is successful."**
+
+There are actually two things:
+
+1. The application processing has completed successfully.
+2. The database LUW has committed.
+
+You want the Z-table update to happen **before the commit but only after the application has successfully completed the relevant LIKP update**.
+
+So ideally:
+
+```text
+IDoc processing
+   ↓
+LIKP successfully changed
+   ↓
+your enhancement
+   ↓
+Z-table update
+   ↓
+standard IDoc processing finishes
+   ↓
+SAP commits LUW
+   ↓
+IDoc becomes successful
+```
+
+Not:
+
+```text
+IDoc successful
+   ↓
+new program/job
+   ↓
+update Z-table
+```
+
+The second approach introduces a timing gap and race conditions.
+
+---
+
+# What I would do in your ECC system
+
+First identify the inbound IDoc's **process code and inbound function module**.
+
+For example:
+
+```text
+WE20
+  ↓
+Inbound Partner Profile
+  ↓
+Message Type
+  ↓
+Process Code
+  ↓
+WE42
+  ↓
+Function Module
+```
+
+Then debug that function module.
+
+You want to find the point where:
+
+```text
+LIKP update
+```
+
+has already succeeded, but the overall IDoc LUW has **not yet committed**.
+
+That is the ideal enhancement location.
+
+---
+
+## Even better: use the same update mechanism
+
+If the standard IDoc function module performs the LIKP update through an update task, you need to understand whether your enhancement executes:
+
+```abap
+CALL FUNCTION ... IN UPDATE TASK
+```
+
+or during the normal dialog/background processing.
+
+This matters because:
+
+```text
+Normal LUW
+    |
+    +-- application logic
+    |
+    +-- update task
+           |
+           +-- database update
+```
+
+means that simply doing:
+
+```abap
+MODIFY ztable ...
+```
+
+from the wrong enhancement location may not give you the transactional behavior you expect.
+
+---
+
+# A very important alternative
+
+There is actually a cleaner design if your first IDoc already has an appropriate **customer enhancement/user exit/BAdI at the point where the delivery update is being prepared**.
+
+Instead of:
+
+```text
+IDoc processing
+   ↓
+LIKP update
+   ↓
+Z-table update
+```
+
+you can have:
+
+```text
+IDoc processing
+   ↓
+Determine External ID + Delivery
+   ↓
+Standard LIKP update
+   +
+Z-table update
+   ↓
+Same LUW
+   ↓
+COMMIT
+```
+
+This is preferable because the two pieces of persistence are transactionally coupled.
+
+---
+
+# What if I can't find such an enhancement?
+
+Then I would **not invent a fake "successful IDoc" check**.
+
+Instead, use the IDoc's own completion status as the trigger.
+
+For example:
+
+```text
+External ID IDoc
+       |
+       v
+Standard processing
+       |
+       v
+IDoc status 53?
+       |
+      YES
+       |
+       v
+Persist External ID
+```
+
+But there is a catch.
+
+If you update the Z-table from a **separate program after status 53**, you are now in a different LUW:
+
+```text
+LUW 1
+IDoc → LIKP → COMMIT
+              ↓
+           Status 53
+
+LUW 2
+Read IDoc → Update Z-table → COMMIT
+```
+
+This is still reliable if designed carefully, but it is **eventual consistency**, not atomic consistency.
+
+It also introduces the possibility of:
+
+```text
+LIKP committed
+IDoc = 53
+Z-table update fails
+```
+
+So you'd need retry/error handling.
+
+---
+
+# Therefore, my preferred hierarchy is
+
+### 🥇 Option 1 — Same LUW
+
+Best:
+
+```text
+IDoc
+ ↓
+LIKP update
+ ↓
+Z-table update
+ ↓
+COMMIT
+```
+
+This gives you transactional consistency.
+
+### 🥈 Option 2 — Update-task/customer enhancement
+
+If the standard process uses update tasks, integrate your Z-table persistence into the appropriate update mechanism so that it commits with the delivery update.
+
+### 🥉 Option 3 — Post-success processing
+
+If SAP does not expose a suitable enhancement point:
+
+```text
+IDoc → LIKP → commit → status 53
+                         ↓
+                    post-processing
+                         ↓
+                     Z-table
+```
+
+This is acceptable, but requires retry/error monitoring.
+
+---
+
+# One more thing: don't use "LIKP exists" as your success check
+
+For example, I would **not** do:
+
+```abap
+SELECT SINGLE vbeln
+  FROM likp
+  WHERE vbeln = @lv_vbeln.
+
+IF sy-subrc = 0.
+  "Assume IDoc succeeded
+  MODIFY ztable ...
+ENDIF.
+```
+
+That is not sufficient.
+
+The delivery may have existed **before the IDoc**.
+
+You need to know that **the current IDoc's processing completed successfully**, not merely that LIKP exists.
+
+---
+
+# What I recommend for your exact requirement
+
+I'd modify the architecture slightly:
+
+```text
+                 FIRST IDOC
+                     |
+                     v
+          Standard IDoc processing
+                     |
+                     v
+              Update LIKP
+                     |
+                     v
+       Is standard processing successful?
+                     |
+                    YES
+                     |
+                     v
+          Custom enhancement
+                     |
+                     v
+           Update ZDEL_EXTID
+                     |
+                     v
+             Standard COMMIT
+                     |
+             +-------+-------+
+             |               |
+             v               v
+          LIKP          ZDEL_EXTID
+         committed       committed
+```
+
+Then the second IDoc:
+
+```text
+                 SHIPMENT IDOC
+                       |
+                       v
+              Determine Delivery
+                       |
+                       v
+              SELECT ZDEL_EXTID
+                       |
+                       v
+                 External ID
+                       |
+                       v
+                VTTK-EXTI1
+                       |
+                       v
+                VTTK COMMIT
+```
+
+**This is the design I'd aim for.**
+
+The next step is to identify **exactly which inbound IDoc you're using for the LIKP update** (message type + basic type, e.g. `DELVRYxx`, `SHPMNTxx`, custom `Z...`). Once you give me that, I can tell you **the specific ECC enhancement/BAdI/user exit/function-module location where you should put the Z-table update**, and whether it will participate in the same LUW as the LIKP update.
+=============================================================================================
+
+**Short answer: No, I would not use a separate update task just for the Z-table.**
+
+For your requirement, the preferred design is to make the Z-table update part of the **same LUW as the successful delivery/IDoc processing**, rather than creating another asynchronous update task.
+
+### Recommended
+
+```text
+Inbound IDoc
+   ↓
+Standard processing
+   ↓
+LIKP update
+   ↓
+Your enhancement
+   ↓
+UPDATE/INSERT Z-table
+   ↓
+Standard IDoc processing completes
+   ↓
+COMMIT WORK
+   ↓
+┌───────────────┬─────────────────┐
+│ LIKP committed│ Z-table committed│
+└───────────────┴─────────────────┘
+```
+
+If the IDoc processing fails and the LUW is rolled back:
+
+```text
+LIKP update     → ROLLBACK
+Z-table update  → ROLLBACK
+```
+
+That's exactly what you want.
+
+### Why not `IN UPDATE TASK`?
+
+If you do:
+
+```abap
+CALL FUNCTION 'Z_UPDATE_EXT_ID'
+  IN UPDATE TASK.
+```
+
+you introduce another layer:
+
+```text
+IDoc processing
+      ↓
+register update task
+      ↓
+COMMIT WORK
+      ↓
+update work process
+      ↓
+Z-table
+```
+
+An update-task FM is appropriate when you **specifically need SAP's update-task mechanism**, but it isn't automatically better or safer merely because you're updating a Z-table.
+
+More importantly, you should **not use update task to solve the requirement "only update after LIKP succeeds."** The update task is triggered as part of the commit processing; it doesn't mean "run only after I have independently verified that LIKP committed."
+
+---
+
+### One important exception
+
+If the **standard IDoc processing itself updates LIKP using an update task**, then you need to inspect that architecture carefully.
+
+For example:
+
+```text
+IDoc FM
+   |
+   +-- CALL FUNCTION ... IN UPDATE TASK
+   |          |
+   |          +-- LIKP update
+   |
+   +-- your enhancement
+```
+
+In that situation, simply doing:
+
+```abap
+MODIFY ztable ...
+```
+
+in the wrong place could create an inconsistent design.
+
+You may instead need to put your Z-table update into the **same update-task processing**, depending on the exact standard implementation.
+
+So the answer is:
+
+> **Don't introduce `IN UPDATE TASK` just because you have a Z-table. First determine how the standard IDoc updates LIKP. Then make your Z-table persistence transactional with that process.**
+
+### For your case, my preference
+
+| Approach                                                    | Recommendation                                            |
+| ----------------------------------------------------------- | --------------------------------------------------------- |
+| Direct `INSERT/MODIFY` in same LUW                          | **Preferred**, if enhancement executes in the correct LUW |
+| `CALL FUNCTION ... IN UPDATE TASK`                          | **Only if required by the standard update architecture**  |
+| Separate `COMMIT WORK` after Z-table update                 | **Avoid**                                                 |
+| Separate background job after IDoc status 53                | Possible fallback                                         |
+| Update Z-table before knowing delivery processing succeeded | **Avoid**                                                 |
+
+The **exact IDoc message type/basic type and inbound function module** are now the key pieces. If you give me those (e.g. `DELVRY07` + process code/function module), I can tell you whether your enhancement should use **direct `MODIFY` or an update-task FM**, and exactly where to put it.
