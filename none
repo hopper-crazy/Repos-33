@@ -1,0 +1,134 @@
+Exactly. For your **ABAP Code Reviewer**, you want a mapping of the **transport object type → what it represents → example → ADT syntax/source URL**.
+
+> **Note:** “Syntax link” below means the ADT REST resource you can call to retrieve the object's source/definition. Not every SAP repository object has source code.
+
+| Object Type | What it is                                                                          | Example Object Name  | ADT Syntax / Source URL                                         |
+| ----------- | ----------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------- |
+| **PROG**    | ABAP executable program/report                                                      | `ZSALES_REPORT`      | `/sap/bc/adt/programs/programs/ZSALES_REPORT/source/main`       |
+| **CLAS**    | ABAP class                                                                          | `ZCL_SALES_ORDER`    | `/sap/bc/adt/oo/classes/ZCL_SALES_ORDER/source/main`            |
+| **INTF**    | ABAP interface                                                                      | `ZIF_SALES_ORDER`    | `/sap/bc/adt/oo/interfaces/ZIF_SALES_ORDER/source/main`         |
+| **FUGR**    | Function group                                                                      | `ZFG_SALES`          | `/sap/bc/adt/functions/groups/ZFG_SALES`                        |
+| **FUNC**    | Function module                                                                     | `Z_GET_SALES_DATA`   | Usually accessed through its function group ADT resource        |
+| **DDLS**    | **CDS Data Definition** — defines a CDS view/entity                                 | `ZC_SALES_ORDER`     | `/sap/bc/adt/ddic/ddl/sources/ZC_SALES_ORDER/source/main`       |
+| **DCLS**    | **CDS Access Control** — defines authorization rules for CDS data                   | `ZC_SALES_AUTH`      | `/sap/bc/adt/ddic/dcl/sources/ZC_SALES_AUTH/source/main`        |
+| **DDLX**    | **CDS Metadata Extension** — adds annotations to a CDS entity                       | `ZC_SALES_ORDER`     | `/sap/bc/adt/ddic/ddlx/sources/ZC_SALES_ORDER/source/main`      |
+| **BDEF**    | **RAP Behavior Definition** — defines behavior such as create/update/delete/actions | `ZR_SALES_ORDER`     | `/sap/bc/adt/bo/behaviordefinitions/ZR_SALES_ORDER/source/main` |
+| **SRVD**    | **RAP Service Definition** — defines which CDS entities are exposed                 | `ZUI_SALES_ORDER`    | `/sap/bc/adt/ddic/srvd/sources/ZUI_SALES_ORDER/source/main`     |
+| **SRVB**    | **RAP Service Binding** — binds a service definition to OData/UI protocol           | `ZUI_SALES_ORDER_O4` | ADT service-binding resource                                    |
+| **TABL**    | DDIC database table                                                                 | `ZSALES_HEADER`      | `/sap/bc/adt/ddic/tables/ZSALES_HEADER`                         |
+| **DTEL**    | Data element — semantic definition of a field                                       | `ZSALES_STATUS`      | `/sap/bc/adt/ddic/dataelements/ZSALES_STATUS`                   |
+| **DOMA**    | Domain — technical definition such as datatype/length/value range                   | `ZSALES_STATUS`      | `/sap/bc/adt/ddic/domains/ZSALES_STATUS`                        |
+| **TTYP**    | Table type — defines an internal table type                                         | `ZTT_SALES`          | `/sap/bc/adt/ddic/tabletypes/ZTT_SALES`                         |
+| **STRU**    | DDIC structure                                                                      | `ZSTR_SALES`         | `/sap/bc/adt/ddic/structures/ZSTR_SALES`                        |
+| **VIEW**    | Classic DDIC database view                                                          | `ZV_SALES`           | DDIC view ADT resource                                          |
+| **ENQU**    | Lock object                                                                         | `EZSALES`            | DDIC lock-object resource                                       |
+| **SHLP**    | Search help                                                                         | `ZSH_SALES`          | DDIC search-help resource                                       |
+| **MSAG**    | Message class                                                                       | `ZSALES`             | Message-class ADT resource                                      |
+| **TRAN**    | Transaction code                                                                    | `ZSALES`             | Repository/transaction resource                                 |
+| **AUTH**    | Authorization object                                                                | `Z_SALES`            | Authorization-object resource                                   |
+
+### The important ones for your AI reviewer
+
+You probably care most about these:
+
+| Type     | Meaning                 | Should AI review source?                     |
+| -------- | ----------------------- | -------------------------------------------- |
+| **PROG** | ABAP Report/Program     | ✅ Yes                                        |
+| **CLAS** | ABAP Class              | ✅ Yes                                        |
+| **INTF** | ABAP Interface          | ✅ Yes                                        |
+| **DDLS** | CDS View/Entity         | ✅ Yes                                        |
+| **DCLS** | CDS Authorization       | ✅ Yes                                        |
+| **DDLX** | CDS Metadata Extension  | ✅ Yes                                        |
+| **BDEF** | RAP Behavior Definition | ✅ Yes                                        |
+| **SRVD** | RAP Service Definition  | ✅ Yes                                        |
+| **SRVB** | RAP Service Binding     | ⚠️ Metadata/configuration                    |
+| **FUNC** | Function Module         | ✅ Yes, via function group                    |
+| **FUGR** | Function Group          | ⚠️ Container; review individual FMs/includes |
+| **TABL** | Database Table          | ⚠️ Metadata                                  |
+| **DTEL** | Data Element            | ⚠️ Metadata                                  |
+| **DOMA** | Domain                  | ⚠️ Metadata                                  |
+| **TTYP** | Table Type              | ⚠️ Metadata                                  |
+
+### Especially: DCLS vs DDLS
+
+These two are easy to confuse:
+
+**DDLS**
+
+```abap
+define view entity ZC_SalesOrder
+  as select from vbak
+{
+    key vbeln,
+        kunnr,
+        netwr
+}
+```
+
+It defines **what data the CDS entity provides**.
+
+**DCLS**
+
+```abap
+@EndUserText.label: 'Sales Order Authorization'
+define role ZC_SALES_AUTH {
+    grant select on ZC_SalesOrder
+        where SalesOrganization = aspect pfcg_auth( ... );
+}
+```
+
+It defines **who is allowed to see which data**.
+
+For your AI reviewer, **both are important**, because the reviewer should understand the relationship:
+
+```text
+DDLS
+  ↓
+What data is exposed?
+  ↓
+DCLS
+  ↓
+Who can access it?
+```
+
+### For your Python implementation
+
+I would **not rely only on `OBJECT` from E071**. Your resolver should maintain:
+
+```python
+OBJECT_HANDLERS = {
+    "PROG": "program",
+    "CLAS": "class",
+    "INTF": "interface",
+    "DDLS": "cds",
+    "DCLS": "cds_access_control",
+    "DDLX": "cds_metadata_extension",
+    "BDEF": "behavior_definition",
+    "SRVD": "service_definition",
+    "SRVB": "service_binding",
+}
+```
+
+Then:
+
+```text
+DS5A12345
+    ↓
+R3TR / PROG / ZREPORT
+    ↓
+ADT → ABAP source
+
+R3TR / DDLS / ZC_SALES
+    ↓
+ADT → CDS source
+
+R3TR / DCLS / ZC_SALES_AUTH
+    ↓
+ADT → DCL source
+
+R3TR / BDEF / ZR_SALES
+    ↓
+ADT → Behavior Definition
+```
+
+**One caveat:** ADT URI patterns are not identical for every repository object, and some objects in a transport are containers/metadata rather than independently reviewable source. So for a production-grade reviewer, the mapping should be based on the **ADT URI/resource returned by the system**, wherever available, rather than blindly constructing a URL for every `E071-OBJECT` value.
