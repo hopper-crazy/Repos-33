@@ -1,250 +1,226 @@
+```python
 import requests
-import time
 
 
-class ADTAPI:
-
-    # =====================================================
-    # INITIALIZE CONNECTION
-    # =====================================================
-
-    def __init__(self, base_url, username, password):
-
-        self.base_url = base_url
-        self.session = requests.Session()
-
-        self.session.auth = (
-            username,
-            password
-        )
-
-
-    # =====================================================
-    # 1. GET CSRF TOKEN
-    # =====================================================
-
-    def get_csrf_token(self):
-
-        CSRF_URL = (
-            self.base_url
-            + "/sap/bc/adt/api/atc/runs/"
-            + "00000000000000000000000000000000"
-        )
-
-        response = self.session.get(
-            CSRF_URL,
-            headers={
-                "x-csrf-token": "fetch"
-            }
-        )
-
-        response.raise_for_status()
-
-        csrf_token = response.headers["x-csrf-token"]
-
-        return csrf_token
-
-
-    # =====================================================
-    # 2. POST ATC CHECK RUN
-    # =====================================================
-
-    def post_atc_check(self, object_name, object_type, csrf_token):
-
-        # ---------------------------------------------
-        # Create XML body
-        # ---------------------------------------------
-
-        xml_body = f"""<?xml version="1.0" encoding="utf-8"?>
-<osl:objectSet
-    xsi:type="osl:flatObjectSet"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xmlns:osl="http://www.sap.com/api/osl">
-
-    <osl:object name="{object_name}" type="{object_type}"/>
-
-</osl:objectSet>
-"""
-
-        # ---------------------------------------------
-        # ATC URL
-        # ---------------------------------------------
-
-        ATC_RUN_URL = (
-            self.base_url
-            + "/sap/bc/adt/api/atc/runs?clientWait=false"
-        )
-
-        # ---------------------------------------------
-        # POST request
-        # ---------------------------------------------
-
-        response = self.session.post(
-            ATC_RUN_URL,
-            headers={
-                "x-csrf-token": csrf_token,
-                "Content-Type":
-                    "application/vnd.sap.atc.run.parameters.v1+xml"
-            },
-            data=xml_body
-        )
-
-        response.raise_for_status()
-
-        # ---------------------------------------------
-        # Get Location header
-        # ---------------------------------------------
-
-        location = response.headers.get("Location")
-
-        if not location:
-            raise Exception(
-                "ATC run started but Location header was not returned."
-            )
-
-        return location
-
-
-    # =====================================================
-    # 3. GET RUN STATUS
-    # =====================================================
-
-    def get_run_status(self, location):
-
-        # Location returned by POST normally contains
-        # the ATC run URL.
-
-        if location.startswith("http"):
-            RUN_URL = location
-        else:
-            RUN_URL = self.base_url + location
-
-        response = self.session.get(
-            RUN_URL,
-            headers={
-                "Accept":
-                    "application/vnd.sap.atc.run.v1+xml"
-            }
-        )
-
-        response.raise_for_status()
-
-        return response.text
-
-
-    # =====================================================
-    # 4. GET ATC RESULTS
-    # =====================================================
-
-    def get_atc_results(self, location):
-
-        # ---------------------------------------------
-        # Extract UUID from Location
-        # ---------------------------------------------
-
-        uuid = location.rstrip("/").split("/")[-1]
-
-        # ---------------------------------------------
-        # Results URL
-        # ---------------------------------------------
-
-        RESULTS_URL = (
-            self.base_url
-            + "/sap/bc/adt/api/atc/results/"
-            + uuid
-        )
-
-        # ---------------------------------------------
-        # GET results
-        # ---------------------------------------------
-
-        response = self.session.get(
-            RESULTS_URL,
-            headers={
-                "Accept":
-                    "application/vnd.sap.atc.checkstyle.v1+xml"
-            }
-        )
-
-        response.raise_for_status()
-
-        return response.text
-
-
-===============================================================
-
-from ADT_API import ADTAPI
-
-
-# =====================================================
-# SAP CONNECTION
-# =====================================================
-
-base_url = "https://your-sap-system"
-username = "username"
-password = "password"
-
-
-adt = ADTAPI(
-    base_url,
-    username,
-    password
-)
-
-
-# =====================================================
-# OBJECT
-# =====================================================
-
-object_name = "CLASS1"
-object_type = "CLAS"
-
-
-# =====================================================
+# ============================================================
 # 1. GET CSRF TOKEN
-# =====================================================
+# ============================================================
 
-csrf_token = adt.get_csrf_token()
+def get_csrf_token(base_url, cookies):
 
-print("CSRF Token received")
+    url = (
+        base_url
+        + "/sap/bc/adt/discovery"
+    )
 
+    headers = {
+        "x-csrf-token": "Fetch"
+    }
 
-# =====================================================
-# 2. POST ATC CHECK
-# =====================================================
+    response = requests.get(
+        url,
+        headers=headers,
+        cookies=cookies,
+        verify=False
+    )
 
-location = adt.post_atc_check(
-    object_name,
-    object_type,
-    csrf_token
-)
+    if response.status_code != 200:
+        print(response.text)
+        response.raise_for_status()
 
-print("ATC Run started")
-print("Location:", location)
+    csrf_token = response.headers.get(
+        "x-csrf-token"
+    )
 
+    if not csrf_token:
+        raise Exception(
+            "CSRF token was not returned."
+        )
 
-# =====================================================
-# 3. GET RUN STATUS
-# =====================================================
-
-while True:
-
-    status = adt.get_run_status(location)
-
-    print("ATC Status:")
-    print(status)
-
-    if "completed" in status.lower():
-        break
-
-    time.sleep(2)
+    return csrf_token
 
 
-# =====================================================
+# ============================================================
+# 2. BUILD ATC XML
+# ============================================================
+
+def build_atc_xml(object_uri):
+
+    xml = f'''<?xml version="1.0" encoding="UTF-8"?>
+
+<atc:run
+    xmlns:atc="http://www.sap.com/adt/atc"
+    maximumViolations="100">
+
+    <objectSets
+        xmlns:adtcore="http://www.sap.com/adt/core">
+
+        <objectSet kind="inclusive">
+
+            <adtcore:objectReferences>
+
+                <adtcore:objectReference
+                    adtcore:uri="/{object_uri}"/>
+
+            </adtcore:objectReferences>
+
+        </objectSet>
+
+    </objectSets>
+
+</atc:run>
+'''
+
+    return xml
+
+
+# ============================================================
+# 3. START ATC CHECK
+# ============================================================
+
+def post_atc_check(
+    base_url,
+    cookies,
+    csrf_token,
+    object_uri
+):
+
+    url = (
+        base_url
+        + "/sap/bc/adt/atc/runs"
+    )
+
+    xml_body = build_atc_xml(
+        object_uri
+    )
+
+    headers = {
+        "x-csrf-token": csrf_token,
+        "Content-Type": "application/xml",
+        "Accept":
+            "application/vnd.sap.atc.run.v1+xml"
+    }
+
+    response = requests.post(
+        url,
+        headers=headers,
+        cookies=cookies,
+        data=xml_body,
+        verify=False
+    )
+
+    print(
+        "ATC POST status:",
+        response.status_code
+    )
+
+    if response.status_code not in [200, 201, 202]:
+
+        print(response.text)
+
+        raise Exception(
+            f"ATC check failed: "
+            f"{response.status_code}"
+        )
+
+    # SAP returns the ATC run location here
+    location = response.headers.get(
+        "Location"
+    )
+
+    if not location:
+
+        raise Exception(
+            "Location header not returned."
+        )
+
+    # Example:
+    # /sap/bc/adt/atc/runs/XXXXXXXX
+    run_id = location.rstrip(
+        "/"
+    ).split("/")[-1]
+
+    print(
+        "ATC Run ID:",
+        run_id
+    )
+
+    return run_id
+
+
+# ============================================================
 # 4. GET ATC RESULTS
-# =====================================================
+# ============================================================
 
-results = adt.get_atc_results(location)
+def get_atc_results(
+    base_url,
+    cookies,
+    run_id
+):
 
-print("\n========== ATC RESULTS ==========\n")
-print(results)
+    url = (
+        base_url
+        + "/sap/bc/adt/atc/runs/"
+        + run_id
+        + "/results"
+    )
+
+    headers = {
+        "Accept":
+            "application/vnd.sap.atc.result.v1+xml"
+    }
+
+    response = requests.get(
+        url,
+        headers=headers,
+        cookies=cookies,
+        verify=False
+    )
+
+    print(
+        "ATC result status:",
+        response.status_code
+    )
+
+    if response.status_code != 200:
+
+        print(response.text)
+
+        response.raise_for_status()
+
+    return response.text
+
+
+# ============================================================
+# 5. COMPLETE ATC FLOW FOR ONE OBJECT
+# ============================================================
+
+def run_atc_for_object(
+    base_url,
+    cookies,
+    object_uri
+):
+
+    # Step 1: Get CSRF
+    csrf_token = get_csrf_token(
+        base_url,
+        cookies
+    )
+
+    # Step 2: Start ATC
+    run_id = post_atc_check(
+        base_url,
+        cookies,
+        csrf_token,
+        object_uri
+    )
+
+    # Step 3: Get results
+    results_xml = get_atc_results(
+        base_url,
+        cookies,
+        run_id
+    )
+
+    return results_xml
+```
