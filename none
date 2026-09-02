@@ -1,195 +1,250 @@
-# ============================================================
-# GET OBJECTS FROM TRANSPORT REQUEST
-# ============================================================
+import requests
+import time
 
-def get_transport_objects(session, base_url, tr_number):
 
-    url = (
-        f"{base_url}/sap/bc/adt/cts/"
-        f"transports/{tr_number}"
-    )
+class ADTAPI:
 
-    response = session.get(url)
+    # =====================================================
+    # INITIALIZE CONNECTION
+    # =====================================================
 
-    if response.status_code == 200:
+    def __init__(self, base_url, username, password):
+
+        self.base_url = base_url
+        self.session = requests.Session()
+
+        self.session.auth = (
+            username,
+            password
+        )
+
+
+    # =====================================================
+    # 1. GET CSRF TOKEN
+    # =====================================================
+
+    def get_csrf_token(self):
+
+        CSRF_URL = (
+            self.base_url
+            + "/sap/bc/adt/api/atc/runs/"
+            + "00000000000000000000000000000000"
+        )
+
+        response = self.session.get(
+            CSRF_URL,
+            headers={
+                "x-csrf-token": "fetch"
+            }
+        )
+
+        response.raise_for_status()
+
+        csrf_token = response.headers["x-csrf-token"]
+
+        return csrf_token
+
+
+    # =====================================================
+    # 2. POST ATC CHECK RUN
+    # =====================================================
+
+    def post_atc_check(self, object_name, object_type, csrf_token):
+
+        # ---------------------------------------------
+        # Create XML body
+        # ---------------------------------------------
+
+        xml_body = f"""<?xml version="1.0" encoding="utf-8"?>
+<osl:objectSet
+    xsi:type="osl:flatObjectSet"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:osl="http://www.sap.com/api/osl">
+
+    <osl:object name="{object_name}" type="{object_type}"/>
+
+</osl:objectSet>
+"""
+
+        # ---------------------------------------------
+        # ATC URL
+        # ---------------------------------------------
+
+        ATC_RUN_URL = (
+            self.base_url
+            + "/sap/bc/adt/api/atc/runs?clientWait=false"
+        )
+
+        # ---------------------------------------------
+        # POST request
+        # ---------------------------------------------
+
+        response = self.session.post(
+            ATC_RUN_URL,
+            headers={
+                "x-csrf-token": csrf_token,
+                "Content-Type":
+                    "application/vnd.sap.atc.run.parameters.v1+xml"
+            },
+            data=xml_body
+        )
+
+        response.raise_for_status()
+
+        # ---------------------------------------------
+        # Get Location header
+        # ---------------------------------------------
+
+        location = response.headers.get("Location")
+
+        if not location:
+            raise Exception(
+                "ATC run started but Location header was not returned."
+            )
+
+        return location
+
+
+    # =====================================================
+    # 3. GET RUN STATUS
+    # =====================================================
+
+    def get_run_status(self, location):
+
+        # Location returned by POST normally contains
+        # the ATC run URL.
+
+        if location.startswith("http"):
+            RUN_URL = location
+        else:
+            RUN_URL = self.base_url + location
+
+        response = self.session.get(
+            RUN_URL,
+            headers={
+                "Accept":
+                    "application/vnd.sap.atc.run.v1+xml"
+            }
+        )
+
+        response.raise_for_status()
+
         return response.text
 
-    print(f"TR API failed - HTTP {response.status_code}")
-    print(url)
 
-    return None
+    # =====================================================
+    # 4. GET ATC RESULTS
+    # =====================================================
 
+    def get_atc_results(self, location):
 
-# ============================================================
-# PROCESS OBJECT BASED ON OBJECT TYPE
-# ============================================================
+        # ---------------------------------------------
+        # Extract UUID from Location
+        # ---------------------------------------------
 
-def process_object(session, base_url, obj_type, obj_name, function_group=None):
+        uuid = location.rstrip("/").split("/")[-1]
 
-    if obj_type == "PROG":
+        # ---------------------------------------------
+        # Results URL
+        # ---------------------------------------------
 
-        return get_program_source(
-            session,
-            base_url,
-            obj_name
+        RESULTS_URL = (
+            self.base_url
+            + "/sap/bc/adt/api/atc/results/"
+            + uuid
         )
 
-    elif obj_type == "CLAS":
+        # ---------------------------------------------
+        # GET results
+        # ---------------------------------------------
 
-        return get_class_source(
-            session,
-            base_url,
-            obj_name
+        response = self.session.get(
+            RESULTS_URL,
+            headers={
+                "Accept":
+                    "application/vnd.sap.atc.checkstyle.v1+xml"
+            }
         )
 
-    elif obj_type == "INTF":
+        response.raise_for_status()
 
-        return get_interface_source(
-            session,
-            base_url,
-            obj_name
-        )
-
-    elif obj_type == "FUGR":
-
-        return get_function_group_source(
-            session,
-            base_url,
-            obj_name
-        )
-
-    elif obj_type == "FUNC":
-
-        return get_function_module_source(
-            session,
-            base_url,
-            function_group,
-            obj_name
-        )
-
-    elif obj_type == "DDLS":
-
-        return get_ddls_source(
-            session,
-            base_url,
-            obj_name
-        )
-
-    elif obj_type == "DCLS":
-
-        return get_dcls_source(
-            session,
-            base_url,
-            obj_name
-        )
-
-    elif obj_type == "DDLX":
-
-        return get_ddlx_source(
-            session,
-            base_url,
-            obj_name
-        )
-
-    elif obj_type == "BDEF":
-
-        return get_bdef_source(
-            session,
-            base_url,
-            obj_name
-        )
-
-    elif obj_type == "SRVD":
-
-        return get_srvd_source(
-            session,
-            base_url,
-            obj_name
-        )
-
-    else:
-
-        print(f"Unsupported object type: {obj_type}")
-
-        return None
+        return response.text
 
 
-# ============================================================
-# START PROCESSING TRANSPORT
-# ============================================================
+===============================================================
 
-def process_transport(session, base_url, tr_number):
+from ADT_API import ADTAPI
 
-    print(f"\nProcessing Transport: {tr_number}")
-    print("----------------------------------------")
 
-    # --------------------------------------------------------
-    # 1. Extract data from TR
-    # --------------------------------------------------------
+# =====================================================
+# SAP CONNECTION
+# =====================================================
 
-    transport_data = get_transport_objects(
-        session,
-        base_url,
-        tr_number
-    )
+base_url = "https://your-sap-system"
+username = "username"
+password = "password"
 
-    if transport_data is None:
-        print("Could not retrieve transport data.")
-        return
 
-    print("Transport data retrieved successfully.")
+adt = ADTAPI(
+    base_url,
+    username,
+    password
+)
 
-    # --------------------------------------------------------
-    # 2. Parse transport data
-    # --------------------------------------------------------
 
-    objects = parse_transport_objects(transport_data)
+# =====================================================
+# OBJECT
+# =====================================================
 
-    if not objects:
-        print("No objects found in transport.")
-        return
+object_name = "CLASS1"
+object_type = "CLAS"
 
-    print(f"Objects found: {len(objects)}")
 
-    # --------------------------------------------------------
-    # 3. Loop over objects
-    # --------------------------------------------------------
+# =====================================================
+# 1. GET CSRF TOKEN
+# =====================================================
 
-    for obj in objects:
+csrf_token = adt.get_csrf_token()
 
-        obj_type = obj["type"]
-        obj_name = obj["name"]
+print("CSRF Token received")
 
-        print(
-            f"\nProcessing: {obj_type} - {obj_name}"
-        )
 
-        # ----------------------------------------------------
-        # 4. Call method according to object type
-        # ----------------------------------------------------
+# =====================================================
+# 2. POST ATC CHECK
+# =====================================================
 
-        source_code = process_object(
-            session,
-            base_url,
-            obj_type,
-            obj_name,
-            obj.get("function_group")
-        )
+location = adt.post_atc_check(
+    object_name,
+    object_type,
+    csrf_token
+)
 
-        if source_code is not None:
+print("ATC Run started")
+print("Location:", location)
 
-            print(
-                f"Successfully retrieved: "
-                f"{obj_type} - {obj_name}"
-            )
 
-            # For now, print source
-            print("----------------------------------------")
-            print(source_code)
+# =====================================================
+# 3. GET RUN STATUS
+# =====================================================
 
-        else:
+while True:
 
-            print(
-                f"Could not retrieve source: "
-                f"{obj_type} - {obj_name}"
-            )
+    status = adt.get_run_status(location)
+
+    print("ATC Status:")
+    print(status)
+
+    if "completed" in status.lower():
+        break
+
+    time.sleep(2)
+
+
+# =====================================================
+# 4. GET ATC RESULTS
+# =====================================================
+
+results = adt.get_atc_results(location)
+
+print("\n========== ATC RESULTS ==========\n")
+print(results)
