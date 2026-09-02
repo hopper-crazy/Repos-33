@@ -9,3 +9,10 @@ def get_transport_request(session, base_url, tr_number):
         f"transportrequests"
     )
 
+
+    # --------------------------------------------------------
+    # Ask user for TR number
+    # --------------------------------------------------------
+
+    tr_number = input("Enter Transport Request number: ").strip()
+
