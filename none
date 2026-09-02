@@ -1,18 +1,195 @@
 # ============================================================
-# GET TRANSPORT REQUEST
+# GET OBJECTS FROM TRANSPORT REQUEST
 # ============================================================
 
-def get_transport_request(session, base_url, tr_number):
+def get_transport_objects(session, base_url, tr_number):
 
     url = (
         f"{base_url}/sap/bc/adt/cts/"
-        f"transportrequests"
+        f"transports/{tr_number}"
     )
 
+    response = session.get(url)
+
+    if response.status_code == 200:
+        return response.text
+
+    print(f"TR API failed - HTTP {response.status_code}")
+    print(url)
+
+    return None
+
+
+# ============================================================
+# PROCESS OBJECT BASED ON OBJECT TYPE
+# ============================================================
+
+def process_object(session, base_url, obj_type, obj_name, function_group=None):
+
+    if obj_type == "PROG":
+
+        return get_program_source(
+            session,
+            base_url,
+            obj_name
+        )
+
+    elif obj_type == "CLAS":
+
+        return get_class_source(
+            session,
+            base_url,
+            obj_name
+        )
+
+    elif obj_type == "INTF":
+
+        return get_interface_source(
+            session,
+            base_url,
+            obj_name
+        )
+
+    elif obj_type == "FUGR":
+
+        return get_function_group_source(
+            session,
+            base_url,
+            obj_name
+        )
+
+    elif obj_type == "FUNC":
+
+        return get_function_module_source(
+            session,
+            base_url,
+            function_group,
+            obj_name
+        )
+
+    elif obj_type == "DDLS":
+
+        return get_ddls_source(
+            session,
+            base_url,
+            obj_name
+        )
+
+    elif obj_type == "DCLS":
+
+        return get_dcls_source(
+            session,
+            base_url,
+            obj_name
+        )
+
+    elif obj_type == "DDLX":
+
+        return get_ddlx_source(
+            session,
+            base_url,
+            obj_name
+        )
+
+    elif obj_type == "BDEF":
+
+        return get_bdef_source(
+            session,
+            base_url,
+            obj_name
+        )
+
+    elif obj_type == "SRVD":
+
+        return get_srvd_source(
+            session,
+            base_url,
+            obj_name
+        )
+
+    else:
+
+        print(f"Unsupported object type: {obj_type}")
+
+        return None
+
+
+# ============================================================
+# START PROCESSING TRANSPORT
+# ============================================================
+
+def process_transport(session, base_url, tr_number):
+
+    print(f"\nProcessing Transport: {tr_number}")
+    print("----------------------------------------")
 
     # --------------------------------------------------------
-    # Ask user for TR number
+    # 1. Extract data from TR
     # --------------------------------------------------------
 
-    tr_number = input("Enter Transport Request number: ").strip()
+    transport_data = get_transport_objects(
+        session,
+        base_url,
+        tr_number
+    )
 
+    if transport_data is None:
+        print("Could not retrieve transport data.")
+        return
+
+    print("Transport data retrieved successfully.")
+
+    # --------------------------------------------------------
+    # 2. Parse transport data
+    # --------------------------------------------------------
+
+    objects = parse_transport_objects(transport_data)
+
+    if not objects:
+        print("No objects found in transport.")
+        return
+
+    print(f"Objects found: {len(objects)}")
+
+    # --------------------------------------------------------
+    # 3. Loop over objects
+    # --------------------------------------------------------
+
+    for obj in objects:
+
+        obj_type = obj["type"]
+        obj_name = obj["name"]
+
+        print(
+            f"\nProcessing: {obj_type} - {obj_name}"
+        )
+
+        # ----------------------------------------------------
+        # 4. Call method according to object type
+        # ----------------------------------------------------
+
+        source_code = process_object(
+            session,
+            base_url,
+            obj_type,
+            obj_name,
+            obj.get("function_group")
+        )
+
+        if source_code is not None:
+
+            print(
+                f"Successfully retrieved: "
+                f"{obj_type} - {obj_name}"
+            )
+
+            # For now, print source
+            print("----------------------------------------")
+            print(source_code)
+
+        else:
+
+            print(
+                f"Could not retrieve source: "
+                f"{obj_type} - {obj_name}"
+            )
