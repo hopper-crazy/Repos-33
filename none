@@ -1,83 +1,246 @@
 import requests
 import urllib3
 
-# Disable SSL certificate warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-# --------------------------------------------------
-# Create SAP ADT Session
-# --------------------------------------------------
+# ============================================================
+# ADT SESSION CONFIGURATION
+# ============================================================
+
 def create_adt_session():
 
     session = requests.Session()
 
-    # SAP cookies
+    # --------------------------------------------------------
+    # Add your SAP cookies here
+    # --------------------------------------------------------
     session.cookies.update({
-        "SAP_SESSIONID_ABC_123": "YOUR_SESSION_COOKIE_VALUE",
+        "SAP_SESSIONID_ABC_123": "YOUR_SESSION_COOKIE",
         "sap-usercontext": "sap-client=100"
     })
 
+    # --------------------------------------------------------
     # Common headers
+    # --------------------------------------------------------
     session.headers.update({
         "Accept": "text/plain",
         "User-Agent": "Mozilla/5.0"
     })
 
-    # Use False only if your SAP server has
-    # an SSL certificate that Python cannot verify
     session.verify = False
 
     return session
 
 
-# --------------------------------------------------
-# Get ABAP Program Source Code
-# --------------------------------------------------
-def get_program_source(session, base_url, program_name):
+# ============================================================
+# COMMON API METHOD
+# ============================================================
 
-    url = (
-        f"{base_url}/sap/bc/adt/repository/"
-        f"abapsource/programs/{program_name}/source/main"
-    )
+def get_source_code(session, url):
 
     response = session.get(url)
 
     if response.status_code == 200:
         return response.text
 
-    print(f"API failed: {response.status_code}")
-    print(response.text)
+    print(f"API failed - HTTP {response.status_code}")
+    print(url)
 
     return None
 
 
-# --------------------------------------------------
-# Main Program
-# --------------------------------------------------
-def main():
+# ============================================================
+# 1. PROG - ABAP Executable Program / Report
+# ============================================================
 
-    # SAP ADT server
-    base_url = "https://your-sap-server:44300"
+def get_program_source(session, base_url, program_name):
 
-    # Create session with cookies and headers
-    session = create_adt_session()
-
-    # ABAP program
-    program_name = "ZMY_PROGRAM"
-
-    # Get source code
-    source_code = get_program_source(
-        session,
-        base_url,
-        program_name
+    url = (
+        f"{base_url}/sap/bc/adt/programs/programs/"
+        f"{program_name}/source/main"
     )
 
-    # Only process code if API returned 200
-    if source_code is not None:
-        print("Program source code:")
-        print("--------------------------------")
-        print(source_code)
+    return get_source_code(session, url)
+
+
+# ============================================================
+# 2. CLAS - ABAP Class
+# ============================================================
+
+def get_class_source(session, base_url, class_name):
+
+    url = (
+        f"{base_url}/sap/bc/adt/oo/classes/"
+        f"{class_name}/source/main"
+    )
+
+    return get_source_code(session, url)
+
+
+# ============================================================
+# 3. INTF - ABAP Interface
+# ============================================================
+
+def get_interface_source(session, base_url, interface_name):
+
+    url = (
+        f"{base_url}/sap/bc/adt/oo/interfaces/"
+        f"{interface_name}/source/main"
+    )
+
+    return get_source_code(session, url)
+
+
+# ============================================================
+# 4. FUGR - Function Group
+# ============================================================
+
+def get_function_group_source(session, base_url, function_group):
+
+    url = (
+        f"{base_url}/sap/bc/adt/functions/groups/"
+        f"{function_group}/source/main"
+    )
+
+    return get_source_code(session, url)
+
+
+# ============================================================
+# 5. FUNC - Function Module
+# ============================================================
+
+def get_function_module_source(
+    session,
+    base_url,
+    function_group,
+    function_module
+):
+
+    url = (
+        f"{base_url}/sap/bc/adt/functions/groups/"
+        f"{function_group}/fmodules/"
+        f"{function_module}/source/main"
+    )
+
+    return get_source_code(session, url)
+
+
+# ============================================================
+# 6. DDLS - CDS Data Definition
+# ============================================================
+
+def get_ddls_source(session, base_url, ddls_name):
+
+    url = (
+        f"{base_url}/sap/bc/adt/ddic/ddls/"
+        f"sources/{ddls_name}/source/main"
+    )
+
+    return get_source_code(session, url)
+
+
+# ============================================================
+# 7. DCLS - CDS Access Control
+# ============================================================
+
+def get_dcls_source(session, base_url, dcls_name):
+
+    url = (
+        f"{base_url}/sap/bc/adt/acm/dcl/"
+        f"sources/{dcls_name}/source/main"
+    )
+
+    return get_source_code(session, url)
+
+
+# ============================================================
+# 8. DDLX - CDS Metadata Extension
+# ============================================================
+
+def get_ddlx_source(session, base_url, ddlx_name):
+
+    url = (
+        f"{base_url}/sap/bc/adt/ddic/ddlx/"
+        f"sources/{ddlx_name}/source/main"
+    )
+
+    return get_source_code(session, url)
+
+
+# ============================================================
+# 9. BDEF - RAP Behavior Definition
+# ============================================================
+
+def get_bdef_source(session, base_url, bdef_name):
+
+    url = (
+        f"{base_url}/sap/bc/adt/bo/behaviordefinitions/"
+        f"{bdef_name}/source/main"
+    )
+
+    return get_source_code(session, url)
+
+
+# ============================================================
+# 10. SRVD - RAP Service Definition
+# ============================================================
+
+def get_srvd_source(session, base_url, srvd_name):
+
+    url = (
+        f"{base_url}/sap/bc/adt/ddic/srvd/"
+        f"sources/{srvd_name}/source/main"
+    )
+
+    return get_source_code(session, url)
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+
+    base_url = "https://your-sap-server:44300"
+
+    session = create_adt_session()
+
+    # --------------------------------------------------------
+    # Examples
+    # --------------------------------------------------------
+
+    program_code = get_program_source(
+        session,
+        base_url,
+        "ZMY_PROGRAM"
+    )
+
+    if program_code is not None:
+        print("PROGRAM SOURCE:")
+        print(program_code)
+
+
+    class_code = get_class_source(
+        session,
+        base_url,
+        "ZMY_CLASS"
+    )
+
+    if class_code is not None:
+        print("CLASS SOURCE:")
+        print(class_code)
+
+
+    ddls_code = get_ddls_source(
+        session,
+        base_url,
+        "ZMY_CDS"
+    )
+
+    if ddls_code is not None:
+        print("CDS SOURCE:")
+        print(ddls_code)
 
 
 if __name__ == "__main__":
