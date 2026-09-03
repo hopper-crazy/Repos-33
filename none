@@ -1,7 +1,61 @@
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+async function checkConnection() {
+
+    const connectionDot =
+        document.getElementById("connectionDot");
+
+    const connectionText =
+        document.getElementById("connectionText");
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:8000/check_connection"
+        );
+
+        if (!response.ok) {
+            throw new Error("Connection check failed");
+        }
+
+        // SAP/API is reachable
+        connectionDot.classList.remove("disconnected");
+        connectionDot.classList.add("connected");
+
+        connectionText.innerText = "SAP Connected";
+
+    } catch (error) {
+
+        // SAP/API is not reachable
+        connectionDot.classList.remove("connected");
+        connectionDot.classList.add("disconnected");
+
+        connectionText.innerText = "SAP Disconnected";
+
+        console.error(
+            "Connection check failed:",
+            error
+        );
+    }
+}
+
+
+.status-dot.connected {
+    background: #16a34a;
+}
+
+.status-dot.disconnected {
+    background: #dc2626;
+}
+
+<div class="connection">
+    <span id="connectionDot" class="status-dot"></span>
+    <span id="connectionText">Checking connection...</span>
+</div>
+
+
+@app.get("/check_connection")
+def check_connection():
+    # Your actual SAP connection check here
+
+    return {
+        "status": "connected"
+    }
