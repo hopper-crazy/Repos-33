@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
     checkSAPConnection();
 });
-
+https://blog.sap-press.com/how-to-integrate-a-python-app-with-sap-business-application-studio-for-an-sap-s4hana-cloud-system
 
 async function checkSAPConnection() {
 
