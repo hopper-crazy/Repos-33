@@ -1,4 +1,13 @@
-document.addEventListener(
-    "DOMContentLoaded",
-    checkConnection
-);
+        sessionStorage.setItem(
+            "reviewData",
+            JSON.stringify(data)
+        );
+
+        // Also store TR number
+        sessionStorage.setItem(
+            "transportRequest",
+            trNumber
+        );
+
+        // Go to second page
+        window.location.href = "review.html";
