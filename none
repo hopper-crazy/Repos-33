@@ -1,1507 +1,520 @@
-/* =====================================================
-   GLOBAL DATA
-===================================================== */
+<!DOCTYPE html>
+<html lang="en">
 
-let reviewData = [];
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-let selectedObjectIndex = 0;
+    <title>SAP Code Review</title>
 
+    <link rel="stylesheet" href="review.css">
+</head>
 
-/* =====================================================
-   PAGE LOAD
-===================================================== */
+<body>
 
-document.addEventListener(
-    "DOMContentLoaded",
-    function () {
+    <!-- =====================================================
+         TOP HEADER
+    ====================================================== -->
 
-        loadReviewData();
+    <header class="top-header">
 
-        checkConnection();
+        <div class="brand-section">
 
-    }
-);
+            <div class="brand-mark">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
 
-
-
-/* =====================================================
-   LOAD DATA FROM SESSION STORAGE
-===================================================== */
-
-function loadReviewData() {
-
-    const storedData =
-        sessionStorage.getItem("reviewData");
-
-    const transportRequest =
-        sessionStorage.getItem(
-            "transportRequest"
-        );
-
-
-    /*
-     * If the user directly opens review.html
-     * without going through the first page.
-     */
-
-    if (!storedData) {
-
-        alert(
-            "No review data available."
-        );
-
-        window.location.href =
-            "index.html";
-
-        return;
-
-    }
-
-
-    try {
-
-        reviewData =
-            JSON.parse(storedData);
-
-
-        /*
-         * Make sure response is an array.
-         */
-
-        if (!Array.isArray(reviewData)) {
-
-            throw new Error(
-                "Review data is not an array."
-            );
-
-        }
-
-
-        /*
-         * Display transport request.
-         */
-
-        document.getElementById(
-            "transportNumber"
-        ).textContent =
-            transportRequest || "-";
-
-
-        document.getElementById(
-            "objectCount"
-        ).textContent =
-            reviewData.length;
-
-
-        /*
-         * Create object list.
-         */
-
-        renderObjectList();
-
-
-        /*
-         * Automatically select first object.
-         */
-
-        if (reviewData.length > 0) {
-
-            selectObject(0);
-
-        }
-
-    }
-    catch (error) {
-
-        console.error(
-            "Failed to load review data:",
-            error
-        );
-
-        alert(
-            "Unable to read review data."
-        );
-
-    }
-
-}
-
-
-
-/* =====================================================
-   RENDER OBJECT LIST
-===================================================== */
-
-function renderObjectList() {
-
-    const objectList =
-        document.getElementById(
-            "objectList"
-        );
-
-
-    objectList.innerHTML = "";
-
-
-    reviewData.forEach(
-        function (object, index) {
-
-            const checks =
-                Array.isArray(
-                    object.atc_checks
-                )
-                    ? object.atc_checks
-                    : [];
-
-
-            const errors =
-                checks.filter(
-                    check =>
-                        normalizeSeverity(
-                            check.severity
-                        ) === "ERROR"
-                ).length;
-
-
-            const warnings =
-                checks.filter(
-                    check =>
-                        normalizeSeverity(
-                            check.severity
-                        ) === "WARNING"
-                ).length;
-
-
-            const icon =
-                getObjectIcon(
-                    object.object_type
-                );
-
-
-            const iconClass =
-                getObjectIconClass(
-                    object.object_type
-                );
-
-
-            let findings = "";
-
-
-            if (errors > 0) {
-
-                findings += `
-                    <span class="error-badge">
-                        ${errors} Error${errors > 1 ? "s" : ""}
-                    </span>
-                `;
-
-            }
-
-
-            if (warnings > 0) {
-
-                findings += `
-                    <span class="warning-badge">
-                        ${warnings} Warning${warnings > 1 ? "s" : ""}
-                    </span>
-                `;
-
-            }
-
-
-            if (
-                errors === 0 &&
-                warnings === 0
-            ) {
-
-                findings = `
-                    <span class="clean-badge">
-                        Clean
-                    </span>
-                `;
-
-            }
-
-
-            const row =
-                document.createElement("div");
-
-
-            row.className =
-                "object-row";
-
-
-            row.onclick =
-                function () {
-
-                    selectObject(index);
-
-                };
-
-
-            row.innerHTML = `
-
-                <div
-                    class="object-icon ${iconClass}"
-                >
-                    ${icon}
+            <div>
+                <div class="brand-title">
+                    SAP CODE REVIEW
                 </div>
 
-
-                <div class="object-details">
-
-                    <div class="object-name">
-                        ${escapeHTML(
-                            object.object_name
-                        )}
-                    </div>
-
-                    <div class="object-type">
-                        ${escapeHTML(
-                            object.object_type
-                        )}
-                    </div>
-
+                <div class="brand-subtitle">
+                    Intelligent ABAP Quality Platform
                 </div>
+            </div>
 
+        </div>
 
-                <div class="object-findings">
 
-                    ${findings}
+        <div class="header-right">
 
-                </div>
+            <div class="connection-status">
 
+                <span id="connectionDot"
+                      class="connection-dot connected">
+                </span>
 
-                <div class="arrow">
-                    →
-                </div>
-
-            `;
-
-
-            objectList.appendChild(row);
-
-        }
-    );
-
-}
-
-
-
-/* =====================================================
-   SELECT OBJECT
-===================================================== */
-
-function selectObject(index) {
-
-    if (
-        index < 0 ||
-        index >= reviewData.length
-    ) {
-
-        return;
-
-    }
-
-
-    selectedObjectIndex =
-        index;
-
-
-    const object =
-        reviewData[index];
-
-
-    /*
-     * Highlight selected object.
-     */
-
-    const rows =
-        document.querySelectorAll(
-            ".object-row"
-        );
-
-
-    rows.forEach(
-        function (row, rowIndex) {
-
-            row.classList.toggle(
-                "active",
-                rowIndex === index
-            );
-
-        }
-    );
-
-
-    /*
-     * Update main object information.
-     */
-
-    displayObjectHeader(
-        object
-    );
-
-
-    /*
-     * Render source code.
-     */
-
-    renderSourceCode(
-        object
-    );
-
-
-    /*
-     * Render ATC findings.
-     */
-
-    renderATCResults(
-        object
-    );
-
-
-    /*
-     * Render AI review.
-     */
-
-    renderAIReview(
-        object
-    );
-
-
-    /*
-     * Reset to Source Code tab
-     * whenever a new object is selected.
-     */
-
-    switchTab("source");
-
-
-    /*
-     * Open chatbot automatically.
-     */
-
-    openChatForObject(
-        object
-    );
-
-}
-
-
-
-/* =====================================================
-   OBJECT HEADER
-===================================================== */
-
-function displayObjectHeader(object) {
-
-    document.getElementById(
-        "objectName"
-    ).textContent =
-        object.object_name || "-";
-
-
-    document.getElementById(
-        "objectDescription"
-    ).textContent =
-        object.object_desc ||
-        object.object_info ||
-        "No description available";
-
-
-    document.getElementById(
-        "objectTypeBadge"
-    ).textContent =
-        object.object_type || "-";
-
-
-    document.getElementById(
-        "breadcrumbObject"
-    ).textContent =
-        object.object_name || "-";
-
-
-    document.getElementById(
-        "codeFileName"
-    ).textContent =
-        object.object_name || "-";
-
-}
-
-
-
-/* =====================================================
-   SOURCE CODE
-===================================================== */
-
-function renderSourceCode(object) {
-
-    const sourceCode =
-        object.source_code || "";
-
-
-    const sourceElement =
-        document.getElementById(
-            "sourceCode"
-        );
-
-
-    sourceElement.textContent =
-        sourceCode;
-
-
-    /*
-     * Calculate number of lines.
-     */
-
-    const lines =
-        sourceCode === ""
-            ? 0
-            : sourceCode.split("\n").length;
-
-
-    document.getElementById(
-        "lineCount"
-    ).textContent =
-        `${lines} lines`;
-
-
-    /*
-     * Generate line numbers.
-     */
-
-    const lineNumbers =
-        document.getElementById(
-            "lineNumbers"
-        );
-
-
-    lineNumbers.innerHTML = "";
-
-
-    for (
-        let i = 1;
-        i <= lines;
-        i++
-    ) {
-
-        lineNumbers.innerHTML +=
-            `${i}<br>`;
-
-    }
-
-}
-
-
-
-/* =====================================================
-   ATC RESULTS
-===================================================== */
-
-function renderATCResults(object) {
-
-    const container =
-        document.getElementById(
-            "atcContainer"
-        );
-
-
-    const checks =
-        Array.isArray(
-            object.atc_checks
-        )
-            ? object.atc_checks
-            : [];
-
-
-    document.getElementById(
-        "atcCount"
-    ).textContent =
-        checks.length;
-
-
-    document.getElementById(
-        "atcSummary"
-    ).textContent =
-        `${checks.length} finding${
-            checks.length !== 1 ? "s" : ""
-        }`;
-
-
-    container.innerHTML = "";
-
-
-    if (checks.length === 0) {
-
-        container.innerHTML = `
-
-            <div class="no-results">
-
-                <div class="no-results-icon">
-                    ✓
-                </div>
-
-                No ATC findings were reported
-                for this object.
+                <span id="connectionText">
+                    SAP Connected
+                </span>
 
             </div>
 
-        `;
+        </div>
 
-        return;
-
-    }
+    </header>
 
 
-    checks.forEach(
-        function (check) {
+    <!-- =====================================================
+         APPLICATION
+    ====================================================== -->
 
-            const severity =
-                normalizeSeverity(
-                    check.severity
-                );
+    <div class="app-layout">
 
 
-            const isError =
-                severity === "ERROR";
+        <!-- =================================================
+             SIDEBAR
+        ================================================== -->
+
+        <aside class="sidebar">
 
 
-            const finding =
-                document.createElement(
-                    "div"
-                );
+            <div class="sidebar-top">
 
-
-            finding.className =
-                `finding ${
-                    isError
-                        ? "error"
-                        : "warning"
-                }`;
-
-
-            finding.innerHTML = `
-
-                <div class="finding-icon">
-
-                    ${
-                        isError
-                            ? "!"
-                            : "!"
-                    }
-
+                <div class="section-label">
+                    TRANSPORT REQUEST
                 </div>
 
 
-                <div class="finding-content">
+                <div class="transport-card">
 
-                    <div class="finding-message">
-
-                        ${escapeHTML(
-                            check.message ||
-                            "No message provided"
-                        )}
-
+                    <div class="transport-icon">
+                        ↗
                     </div>
 
+                    <div>
 
-                    <div class="finding-source">
+                        <div class="transport-number"
+                             id="transportNumber">
+                            —
+                        </div>
 
-                        ${escapeHTML(
-                            check.source ||
-                            "Source location not provided"
-                        )}
-
-                    </div>
-
-
-                    <div class="finding-recommendation">
-
-                        <strong>
-                            Recommendation:
-                        </strong>
-
-                        ${
-                            escapeHTML(
-                                check.recommendation ||
-                                "No recommendation provided."
-                            )
-                        }
+                        <div class="transport-label">
+                            Code Review
+                        </div>
 
                     </div>
 
                 </div>
 
 
-                <span
-                    class="
-                        severity-label
-                        ${
-                            isError
-                                ? "error-label"
-                                : "warning-label"
-                        }
-                    "
-                >
-                    ${escapeHTML(
-                        severity || "UNKNOWN"
-                    )}
-                </span>
+                <div class="objects-header">
 
-            `;
+                    <span>
+                        OBJECTS
+                    </span>
+
+                    <span id="objectCount">
+                        0
+                    </span>
+
+                </div>
 
 
-            container.appendChild(
-                finding
-            );
+                <div id="objectList"
+                     class="object-list">
 
-        }
-    );
+                    <!-- Objects generated by JS -->
 
-}
+                </div>
 
-
-
-/* =====================================================
-   AI REVIEW
-===================================================== */
-
-function renderAIReview(object) {
-
-    const aiReviews =
-        Array.isArray(
-            object.ai_code_review
-        )
-            ? object.ai_code_review
-            : [];
+            </div>
 
 
-    document.getElementById(
-        "aiCount"
-    ).textContent =
-        aiReviews.length;
+            <!-- =================================================
+                 SIDEBAR BOTTOM
+            ================================================== -->
+
+            <div class="sidebar-bottom">
+
+                <button id="newReviewBtn"
+                        class="new-review-button">
+
+                    <span class="plus-icon">
+                        +
+                    </span>
+
+                    <span>
+                        New Review
+                    </span>
+
+                </button>
+
+            </div>
+
+        </aside>
 
 
-    /*
-     * Overall assessment
-     */
+        <!-- =================================================
+             MAIN CONTENT
+        ================================================== -->
 
-    renderOverallAssessment(
-        object.ai_overall_assessment
-    );
+        <main class="main-content">
 
 
-    /*
-     * AI findings
-     */
+            <!-- ================= OBJECT HEADER ================= -->
 
-    const container =
-        document.getElementById(
-            "aiContainer"
-        );
+            <section class="object-header">
+
+                <div>
+
+                    <div class="breadcrumb">
+
+                        <span>Transport</span>
+
+                        <span class="breadcrumb-arrow">
+                            /
+                        </span>
+
+                        <span id="breadcrumbTR">
+                            —
+                        </span>
+
+                        <span class="breadcrumb-arrow">
+                            /
+                        </span>
+
+                        <span id="breadcrumbType">
+                            —
+                        </span>
+
+                    </div>
 
 
-    container.innerHTML = "";
+                    <div class="object-title-row">
+
+                        <div>
+
+                            <h1 id="objectName">
+                                Select an object
+                            </h1>
+
+                            <p id="objectDescription">
+                                Select an object from the transport request.
+                            </p>
+
+                        </div>
 
 
-    if (aiReviews.length === 0) {
+                        <div id="objectTypeBadge"
+                             class="object-type-badge">
+                            —
+                        </div>
 
-        container.innerHTML = `
+                    </div>
 
-            <div class="no-results">
+                </div>
 
-                <div class="no-results-icon">
+
+                <!-- Object statistics -->
+
+                <div class="object-summary">
+
+                    <div class="summary-item">
+
+                        <span class="summary-number"
+                              id="atcCount">
+                            0
+                        </span>
+
+                        <span class="summary-label">
+                            ATC Findings
+                        </span>
+
+                    </div>
+
+
+                    <div class="summary-divider"></div>
+
+
+                    <div class="summary-item">
+
+                        <span class="summary-number"
+                              id="aiCount">
+                            0
+                        </span>
+
+                        <span class="summary-label">
+                            AI Findings
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ================= TABS ================= -->
+
+            <div class="tabs">
+
+                <button class="tab active"
+                        data-tab="source">
+
+                    Source Code
+
+                </button>
+
+
+                <button class="tab"
+                        data-tab="atc">
+
+                    ATC Findings
+
+                    <span id="atcTabCount"
+                          class="tab-count">
+                        0
+                    </span>
+
+                </button>
+
+
+                <button class="tab"
+                        data-tab="ai">
+
+                    AI Review
+
+                    <span id="aiTabCount"
+                          class="tab-count ai-count">
+                        0
+                    </span>
+
+                </button>
+
+            </div>
+
+
+            <!-- =================================================
+                 SOURCE TAB
+            ================================================== -->
+
+            <section id="sourceTab"
+                     class="tab-content active-tab-content">
+
+
+                <div class="section-heading">
+
+                    <div>
+
+                        <div class="section-title">
+                            SOURCE CODE
+                        </div>
+
+                        <div class="section-subtitle">
+                            ABAP implementation retrieved from SAP
+                        </div>
+
+                    </div>
+
+
+                    <div id="lineCount"
+                         class="line-count">
+                        0 lines
+                    </div>
+
+                </div>
+
+
+                <div class="code-editor">
+
+
+                    <div class="editor-header">
+
+                        <div class="editor-file">
+
+                            <span class="file-dot"></span>
+
+                            <span id="codeFileName">
+                                source.abap
+                            </span>
+
+                        </div>
+
+
+                        <span class="editor-language">
+                            ABAP
+                        </span>
+
+                    </div>
+
+
+                    <div class="code-container">
+
+                        <pre id="sourceCode"></pre>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 ATC TAB
+            ================================================== -->
+
+            <section id="atcTab"
+                     class="tab-content">
+
+                <div class="section-heading">
+
+                    <div>
+
+                        <div class="section-title">
+                            ATC FINDINGS
+                        </div>
+
+                        <div class="section-subtitle">
+                            Automated Transport Check results
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div id="atcContainer"
+                     class="findings-container">
+
+                    <!-- ATC generated by JS -->
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 AI TAB
+            ================================================== -->
+
+            <section id="aiTab"
+                     class="tab-content">
+
+
+                <!-- Overall Assessment -->
+
+                <div class="section-heading">
+
+                    <div>
+
+                        <div class="section-title">
+                            AI CODE REVIEW
+                        </div>
+
+                        <div class="section-subtitle">
+                            Intelligent analysis of the ABAP implementation
+                        </div>
+
+                    </div>
+
+                    <div class="ai-label">
+                        AI ANALYSIS
+                    </div>
+
+                </div>
+
+
+                <div id="assessmentCard"
+                     class="assessment-card">
+
+                    <!-- generated by JS -->
+
+                </div>
+
+
+                <div id="aiContainer"
+                     class="ai-findings-container">
+
+                    <!-- AI findings generated by JS -->
+
+                </div>
+
+            </section>
+
+
+        </main>
+
+    </div>
+
+
+    <!-- =====================================================
+         CHATBOT
+    ====================================================== -->
+
+    <div id="chatbot"
+         class="chatbot">
+
+
+        <div class="chatbot-header">
+
+            <div class="chatbot-title">
+
+                <div class="bot-icon">
                     ✦
                 </div>
 
-                No AI findings are available
-                for this object.
-
-            </div>
-
-        `;
-
-        return;
-
-    }
-
-
-    aiReviews.forEach(
-        function (review) {
-
-            const card =
-                document.createElement(
-                    "div"
-                );
-
-
-            card.className =
-                "ai-card";
-
-
-            const severity =
-                normalizeSeverity(
-                    review.severity
-                );
-
-
-            card.innerHTML = `
-
-                <div class="ai-card-header">
-
-                    <div class="ai-category">
-
-                        ${escapeHTML(
-                            review.category ||
-                            "Code Quality"
-                        )}
-
-                    </div>
-
-
-                    <span
-                        class="
-                            ai-severity
-                            ${getAISeverityClass(
-                                severity
-                            )}
-                        "
-                    >
-
-                        ${escapeHTML(
-                            severity ||
-                            "INFO"
-                        )}
-
-                    </span>
-
-                </div>
-
-
-                <div class="ai-finding">
+                <div>
 
                     <strong>
-                        Finding
+                        Code Assistant
                     </strong>
 
-                    <br>
-
-                    ${escapeHTML(
-                        review.findings ||
-                        "No finding provided."
-                    )}
+                    <small>
+                        Ask about this object
+                    </small>
 
                 </div>
 
-
-                ${
-                    review.comment
-                        ? `
-
-                            <div class="ai-comment">
-
-                                ${escapeHTML(
-                                    review.comment
-                                )}
-
-                            </div>
-
-                        `
-                        : ""
-                }
-
-
-                ${
-                    review.recommendation
-                        ? `
-
-                            <div class="recommendation">
-
-                                <div class="recommendation-title">
-
-                                    Recommendation
-
-                                </div>
-
-                                <div class="recommendation-text">
-
-                                    ${escapeHTML(
-                                        review.recommendation
-                                    )}
-
-                                </div>
-
-                            </div>
-
-                        `
-                        : ""
-                }
-
-
-                ${
-                    review.code_reference
-                        ? `
-
-                            <div>
-
-                                <div class="recommendation-title">
-
-                                    Code Reference
-
-                                </div>
-
-                                <div class="code-reference">
-
-                                    ${escapeHTML(
-                                        review.code_reference
-                                    )}
-
-                                </div>
-
-                            </div>
-
-                        `
-                        : ""
-                }
-
-            `;
-
-
-            container.appendChild(
-                card
-            );
-
-        }
-    );
-
-}
-
-
-
-/* =====================================================
-   OVERALL AI ASSESSMENT
-===================================================== */
-
-function renderOverallAssessment(
-    assessment
-) {
-
-    const container =
-        document.getElementById(
-            "overallAssessment"
-        );
-
-
-    if (!assessment) {
-
-        container.innerHTML = `
-
-            <div class="assessment-header">
-
-                <div class="assessment-title">
-                    OVERALL ASSESSMENT
-                </div>
-
-            </div>
-
-            <div class="assessment-summary">
-                No overall AI assessment available.
-            </div>
-
-        `;
-
-        return;
-
-    }
-
-
-    const status =
-        assessment.status || "UNKNOWN";
-
-
-    const statusUpper =
-        status.toUpperCase();
-
-
-    let statusClass =
-        "status-good";
-
-
-    if (
-        statusUpper.includes("ERROR") ||
-        statusUpper.includes("CRITICAL") ||
-        statusUpper.includes("FAIL")
-    ) {
-
-        statusClass =
-            "status-error";
-
-    }
-    else if (
-        statusUpper.includes("WARNING") ||
-        statusUpper.includes("MODERATE") ||
-        statusUpper.includes("ATTENTION")
-    ) {
-
-        statusClass =
-            "status-warning";
-
-    }
-
-
-    container.innerHTML = `
-
-        <div class="assessment-header">
-
-            <div class="assessment-title">
-
-                OVERALL ASSESSMENT
-
             </div>
 
 
-            <span
-                class="
-                    assessment-status
-                    ${statusClass}
-                "
-            >
-
-                ${escapeHTML(
-                    status
-                )}
-
-            </span>
+            <button id="closeChat"
+                    class="close-chat">
+                ×
+            </button>
 
         </div>
 
 
-        <div class="assessment-summary">
+        <div id="chatMessages"
+             class="chat-messages">
 
-            ${escapeHTML(
-                assessment.Summary ||
-                assessment.summary ||
-                "No summary available."
-            )}
+            <div class="bot-message">
 
-        </div>
+                I'm ready to help you understand this
+                ABAP object.
 
-    `;
+                <br><br>
 
-}
+                Ask me about the source code, ATC findings,
+                or AI recommendations.
 
-
-
-/* =====================================================
-   TAB SWITCHING
-===================================================== */
-
-function switchTab(tabName) {
-
-    /*
-     * Remove active state from buttons.
-     */
-
-    document.querySelectorAll(
-        ".tab"
-    ).forEach(
-        function (tab) {
-
-            tab.classList.remove(
-                "active"
-            );
-
-        }
-    );
-
-
-    /*
-     * Hide all content.
-     */
-
-    document.querySelectorAll(
-        ".tab-content"
-    ).forEach(
-        function (content) {
-
-            content.classList.remove(
-                "active"
-            );
-
-        }
-    );
-
-
-    /*
-     * Activate selected tab.
-     */
-
-    const selectedButton =
-        document.querySelector(
-            `.tab[data-tab="${tabName}"]`
-        );
-
-
-    if (selectedButton) {
-
-        selectedButton.classList.add(
-            "active"
-        );
-
-    }
-
-
-    const selectedContent =
-        document.getElementById(
-            `${tabName}Tab`
-        );
-
-
-    if (selectedContent) {
-
-        selectedContent.classList.add(
-            "active"
-        );
-
-    }
-
-}
-
-
-
-/* =====================================================
-   CHATBOT
-===================================================== */
-
-function toggleChat() {
-
-    const chatbot =
-        document.getElementById(
-            "chatbot"
-        );
-
-
-    chatbot.classList.toggle(
-        "open"
-    );
-
-}
-
-
-function openChatForObject(
-    object
-) {
-
-    const chatbot =
-        document.getElementById(
-            "chatbot"
-        );
-
-
-    chatbot.classList.add(
-        "open"
-    );
-
-
-    const messages =
-        document.getElementById(
-            "chatMessages"
-        );
-
-
-    messages.innerHTML = `
-
-        <div class="bot-message">
-
-            I'm ready to help you review
-
-            <strong>
-                ${escapeHTML(
-                    object.object_name
-                )}
-            </strong>.
-
-            <br><br>
-
-            You can ask about its
-            source code, ATC findings,
-            or AI recommendations.
+            </div>
 
         </div>
 
-    `;
 
-}
+        <div class="chat-input-area">
 
+            <input id="chatInput"
+                   type="text"
+                   placeholder="Ask about this object...">
 
-
-/* =====================================================
-   CHAT SUBMIT
-===================================================== */
-
-function submitChat() {
-
-    const input =
-        document.getElementById(
-            "chatInput"
-        );
-
-
-    const message =
-        input.value.trim();
-
-
-    if (message === "") {
-
-        return;
-
-    }
-
-
-    /*
-     * Display user's message.
-     */
-
-    const messages =
-        document.getElementById(
-            "chatMessages"
-        );
-
-
-    messages.innerHTML += `
-
-        <div class="user-message">
-
-            ${escapeHTML(
-                message
-            )}
+            <button id="chatSubmit">
+                →
+            </button>
 
         </div>
 
-    `;
+    </div>
 
 
-    input.value = "";
+    <script src="review.js"></script>
 
+</body>
 
-    /*
-     * =================================================
-     *
-     * FUTURE CHATBOT API
-     *
-     * This method is intentionally empty for now.
-     *
-     * Later you can put:
-     *
-     * fetch("/chat", {
-     *     method: "POST",
-     *     headers: {
-     *         "Content-Type": "application/json"
-     *     },
-     *     body: JSON.stringify({
-     *         object: reviewData[selectedObjectIndex],
-     *         question: message
-     *     })
-     * });
-     *
-     * =================================================
-     */
-
-}
-
-
-
-/* =====================================================
-   SAP CONNECTION
-===================================================== */
-
-async function checkConnection() {
-
-    const dot =
-        document.getElementById(
-            "connectionDot"
-        );
-
-
-    const text =
-        document.getElementById(
-            "connectionText"
-        );
-
-
-    try {
-
-        const response =
-            await fetch(
-                "http://localhost:8000/check_connection"
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "SAP connection failed"
-            );
-
-        }
-
-
-        dot.classList.remove(
-            "disconnected"
-        );
-
-        dot.classList.add(
-            "connected"
-        );
-
-
-        text.textContent =
-            "SAP Connected";
-
-    }
-    catch (error) {
-
-        dot.classList.remove(
-            "connected"
-        );
-
-        dot.classList.add(
-            "disconnected"
-        );
-
-
-        text.textContent =
-            "SAP Disconnected";
-
-
-        console.error(
-            error
-        );
-
-    }
-
-}
-
-
-
-/* =====================================================
-   NEW REVIEW
-===================================================== */
-
-function newReview() {
-
-    sessionStorage.removeItem(
-        "reviewData"
-    );
-
-
-    sessionStorage.removeItem(
-        "transportRequest"
-    );
-
-
-    window.location.href =
-        "index.html";
-
-}
-
-
-
-/* =====================================================
-   OBJECT ICON
-===================================================== */
-
-function getObjectIcon(type) {
-
-    const value =
-        (type || "").toUpperCase();
-
-
-    if (
-        value.includes("CLAS") ||
-        value.includes("CLASS")
-    ) {
-
-        return "CL";
-
-    }
-
-
-    if (
-        value.includes("PROG") ||
-        value.includes("PROGRAM")
-    ) {
-
-        return "PG";
-
-    }
-
-
-    if (
-        value.includes("DDL")
-    ) {
-
-        return "DD";
-
-    }
-
-
-    if (
-        value.includes("SRV") ||
-        value.includes("SERV")
-    ) {
-
-        return "SV";
-
-    }
-
-
-    return "AB";
-
-}
-
-
-function getObjectIconClass(type) {
-
-    const value =
-        (type || "").toUpperCase();
-
-
-    if (
-        value.includes("CLAS") ||
-        value.includes("CLASS")
-    ) {
-
-        return "class-icon";
-
-    }
-
-
-    if (
-        value.includes("PROG") ||
-        value.includes("PROGRAM")
-    ) {
-
-        return "program-icon";
-
-    }
-
-
-    if (
-        value.includes("DDL")
-    ) {
-
-        return "ddl-icon";
-
-    }
-
-
-    if (
-        value.includes("SRV") ||
-        value.includes("SERV")
-    ) {
-
-        return "service-icon";
-
-    }
-
-
-    return "class-icon";
-
-}
-
-
-
-/* =====================================================
-   SEVERITY HELPERS
-===================================================== */
-
-function normalizeSeverity(
-    severity
-) {
-
-    if (!severity) {
-
-        return "";
-
-    }
-
-
-    return String(
-        severity
-    ).trim().toUpperCase();
-
-}
-
-
-function getAISeverityClass(
-    severity
-) {
-
-    if (
-        severity === "ERROR" ||
-        severity === "CRITICAL" ||
-        severity === "HIGH"
-    ) {
-
-        return "error-label";
-
-    }
-
-
-    if (
-        severity === "WARNING" ||
-        severity === "MEDIUM"
-    ) {
-
-        return "warning-label";
-
-    }
-
-
-    return "status-good";
-
-}
-
-
-
-/* =====================================================
-   HTML ESCAPE
-===================================================== */
-
-function escapeHTML(value) {
-
-    if (
-        value === null ||
-        value === undefined
-    ) {
-
-        return "";
-
-    }
-
-
-    return String(value)
-        .replaceAll(
-            "&",
-            "&amp;"
-        )
-        .replaceAll(
-            "<",
-            "&lt;"
-        )
-        .replaceAll(
-            ">",
-            "&gt;"
-        )
-        .replaceAll(
-            '"',
-            "&quot;"
-        )
-        .replaceAll(
-            "'",
-            "&#039;"
-        );
-
-}
+</html>
