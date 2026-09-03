@@ -1,713 +1,859 @@
 /* =========================================================
-   GLOBAL
+   LOAD DATA FROM SESSION STORAGE
 ========================================================= */
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+let reviewData = [];
+let transportRequest = "";
 
-body {
-    font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
+try {
 
-    background: #f5f7f9;
-    color: #20252b;
+    reviewData = JSON.parse(
+        sessionStorage.getItem("reviewData")
+    ) || [];
 
-    overflow: hidden;
+    transportRequest =
+        sessionStorage.getItem("transportRequest") || "";
+
+} catch (error) {
+
+    console.error("Unable to read review data:", error);
+
 }
 
 
 /* =========================================================
-   HEADER
+   CURRENT OBJECT
 ========================================================= */
 
-.top-header {
-
-    height: 68px;
-
-    background: #ffffff;
-
-    border-bottom: 1px solid #e5e8eb;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    padding: 0 30px;
-}
+let currentObjectIndex = 0;
 
 
-.brand-section {
+/* =========================================================
+   DOM ELEMENTS
+========================================================= */
 
-    display: flex;
+const objectList =
+    document.getElementById("objectList");
 
-    align-items: center;
+const objectCount =
+    document.getElementById("objectCount");
 
-    gap: 12px;
-}
+const transportNumber =
+    document.getElementById("transportNumber");
 
+const breadcrumbTR =
+    document.getElementById("breadcrumbTR");
 
-.brand-mark {
+const breadcrumbType =
+    document.getElementById("breadcrumbType");
 
-    width: 32px;
-    height: 32px;
+const objectName =
+    document.getElementById("objectName");
 
-    border-radius: 7px;
+const objectDescription =
+    document.getElementById("objectDescription");
 
-    background: #1f2933;
+const objectTypeBadge =
+    document.getElementById("objectTypeBadge");
 
-    display: flex;
+const atcCount =
+    document.getElementById("atcCount");
 
-    align-items: flex-end;
+const aiCount =
+    document.getElementById("aiCount");
 
-    justify-content: center;
+const atcTabCount =
+    document.getElementById("atcTabCount");
 
-    gap: 3px;
+const aiTabCount =
+    document.getElementById("aiTabCount");
 
-    padding-bottom: 7px;
-}
+const lineCount =
+    document.getElementById("lineCount");
 
+const codeFileName =
+    document.getElementById("codeFileName");
 
-.brand-mark span {
+const sourceCode =
+    document.getElementById("sourceCode");
 
-    width: 3px;
+const atcContainer =
+    document.getElementById("atcContainer");
 
-    border-radius: 2px;
+const aiContainer =
+    document.getElementById("aiContainer");
 
-    background: #ffffff;
-}
+const assessmentCard =
+    document.getElementById("assessmentCard");
 
+const chatbot =
+    document.getElementById("chatbot");
 
-.brand-mark span:nth-child(1) {
-    height: 8px;
-}
+const chatMessages =
+    document.getElementById("chatMessages");
 
-.brand-mark span:nth-child(2) {
-    height: 13px;
-}
+const chatInput =
+    document.getElementById("chatInput");
 
-.brand-mark span:nth-child(3) {
-    height: 18px;
-}
+const chatSubmit =
+    document.getElementById("chatSubmit");
 
+const closeChat =
+    document.getElementById("closeChat");
 
-.brand-title {
-
-    font-size: 15px;
-
-    font-weight: 700;
-
-    letter-spacing: 0.7px;
-}
-
-
-.brand-subtitle {
-
-    font-size: 10px;
-
-    color: #89919a;
-
-    margin-top: 2px;
-}
-
-
-.header-right {
-
-    display: flex;
-
-    align-items: center;
-}
+const newReviewBtn =
+    document.getElementById("newReviewBtn");
 
 
-.connection-status {
+/* =========================================================
+   INITIALIZE
+========================================================= */
 
-    display: flex;
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
 
-    align-items: center;
+        transportNumber.textContent =
+            transportRequest || "Unknown";
 
-    gap: 8px;
+        breadcrumbTR.textContent =
+            transportRequest || "Unknown";
 
-    font-size: 12px;
+        objectCount.textContent =
+            reviewData.length;
 
-    color: #667085;
-}
+        renderObjectList();
 
+        if (reviewData.length > 0) {
 
-.connection-dot {
+            selectObject(0);
 
-    width: 8px;
-    height: 8px;
+        } else {
 
-    border-radius: 50%;
-}
+            showEmptyState();
 
+        }
 
-.connection-dot.connected {
-    background: #16a34a;
-
-    box-shadow:
-        0 0 0 4px rgba(22, 163, 74, 0.1);
-}
+    }
+);
 
 
-.connection-dot.disconnected {
-    background: #dc2626;
+/* =========================================================
+   OBJECT TYPE DISPLAY
+========================================================= */
 
-    box-shadow:
-        0 0 0 4px rgba(220, 38, 38, 0.1);
+function getObjectTypeName(type) {
+
+    const types = {
+
+        PROG: "Program",
+
+        CLAS: "Class",
+
+        INTF: "Interface",
+
+        FUGR: "Function Group",
+
+        FUNC: "Function Module",
+
+        DDLS: "DDL Source",
+
+        DCLS: "DCL Source",
+
+        DDLX: "DDL Extension",
+
+        BDEF: "Behavior Definition",
+
+        SRVD: "Service Definition"
+
+    };
+
+    return types[type] || type || "Object";
 }
 
 
 /* =========================================================
-   APP LAYOUT
+   GET OBJECT STATUS
 ========================================================= */
 
-.app-layout {
+function getObjectStatus(object) {
 
-    height: calc(100vh - 68px);
+    const checks =
+        Array.isArray(object.atc_checks)
+            ? object.atc_checks
+            : [];
 
-    display: flex;
+    if (checks.length === 0) {
+
+        return "success";
+
+    }
+
+
+    const hasError =
+        checks.some(check =>
+            String(check.severity || "")
+                .toLowerCase()
+                .includes("error")
+        );
+
+    if (hasError) {
+
+        return "error";
+
+    }
+
+    return "warning";
 }
 
 
 /* =========================================================
-   SIDEBAR
+   RENDER OBJECT LIST
 ========================================================= */
 
-.sidebar {
+function renderObjectList() {
 
-    width: 285px;
+    objectList.innerHTML = "";
 
-    background: #ffffff;
+    reviewData.forEach(
+        (object, index) => {
 
-    border-right: 1px solid #e3e7eb;
+            const item =
+                document.createElement("div");
 
-    display: flex;
+            item.className = "object-item";
 
-    flex-direction: column;
+            if (index === currentObjectIndex) {
 
-    justify-content: space-between;
+                item.classList.add("active");
 
-    flex-shrink: 0;
-}
-
-
-.sidebar-top {
-
-    padding: 25px 16px;
-
-    overflow-y: auto;
-}
+            }
 
 
-.section-label {
+            const status =
+                getObjectStatus(object);
 
-    font-size: 10px;
 
-    font-weight: 700;
+            const atcChecks =
+                Array.isArray(object.atc_checks)
+                    ? object.atc_checks
+                    : [];
 
-    color: #8a929b;
 
-    letter-spacing: 1.1px;
+            item.innerHTML = `
 
-    margin: 0 10px 10px;
+                <div class="object-status ${status}">
+                </div>
+
+                <div class="object-information">
+
+                    <div class="object-name">
+                        ${escapeHtml(
+                            object.object_name || "Unnamed Object"
+                        )}
+                    </div>
+
+                    <div class="object-meta">
+
+                        <span class="object-type">
+                            ${escapeHtml(
+                                object.object_type || "—"
+                            )}
+                        </span>
+
+                    </div>
+
+                </div>
+
+                <span class="finding-count">
+                    ${atcChecks.length}
+                </span>
+
+            `;
+
+
+            item.addEventListener(
+                "click",
+                function () {
+
+                    selectObject(index);
+
+                }
+            );
+
+
+            objectList.appendChild(item);
+
+        }
+    );
+
 }
 
 
 /* =========================================================
-   TRANSPORT CARD
+   SELECT OBJECT
 ========================================================= */
 
-.transport-card {
+function selectObject(index) {
 
-    display: flex;
+    if (!reviewData[index]) {
 
-    align-items: center;
+        return;
 
-    gap: 12px;
-
-    background: #f7f9fb;
-
-    border: 1px solid #edf0f2;
-
-    padding: 13px;
-
-    border-radius: 9px;
-
-    margin-bottom: 28px;
-}
+    }
 
 
-.transport-icon {
-
-    width: 34px;
-    height: 34px;
-
-    border-radius: 7px;
-
-    background: #eef2f5;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-size: 16px;
-
-    color: #46515d;
-}
+    currentObjectIndex = index;
 
 
-.transport-number {
-
-    font-family: Consolas, monospace;
-
-    font-size: 13px;
-
-    font-weight: 700;
-}
+    const object =
+        reviewData[index];
 
 
-.transport-label {
+    /*
+     * Update sidebar
+     */
 
-    font-size: 10px;
+    document
+        .querySelectorAll(".object-item")
+        .forEach((item, i) => {
 
-    color: #9299a1;
+            item.classList.toggle(
+                "active",
+                i === index
+            );
 
-    margin-top: 3px;
+        });
+
+
+    /*
+     * Update object header
+     */
+
+    objectName.textContent =
+        object.object_name || "Unnamed Object";
+
+
+    objectDescription.textContent =
+        object.object_desc ||
+        object.object_info ||
+        "No object description available.";
+
+
+    objectTypeBadge.textContent =
+        getObjectTypeName(
+            object.object_type
+        );
+
+
+    breadcrumbType.textContent =
+        object.object_type || "—";
+
+
+    /*
+     * ATC
+     */
+
+    const atcChecks =
+        Array.isArray(object.atc_checks)
+            ? object.atc_checks
+            : [];
+
+
+    atcCount.textContent =
+        atcChecks.length;
+
+    atcTabCount.textContent =
+        atcChecks.length;
+
+
+    /*
+     * AI
+     */
+
+    const aiReviews =
+        Array.isArray(object.ai_code_review)
+            ? object.ai_code_review
+            : [];
+
+
+    aiCount.textContent =
+        aiReviews.length;
+
+    aiTabCount.textContent =
+        aiReviews.length;
+
+
+    /*
+     * Source
+     */
+
+    renderSourceCode(
+        object.source_code
+    );
+
+
+    /*
+     * ATC findings
+     */
+
+    renderATCChecks(
+        atcChecks
+    );
+
+
+    /*
+     * AI review
+     */
+
+    renderAIReview(
+        object
+    );
+
+
+    /*
+     * IMPORTANT:
+     *
+     * Chatbot does NOT automatically open.
+     *
+     * If user changes object, chatbot remains closed.
+     */
+
+    chatbot.classList.remove("open");
+
 }
 
 
 /* =========================================================
-   OBJECT HEADER
+   SOURCE CODE
 ========================================================= */
 
-.objects-header {
+function renderSourceCode(code) {
 
-    display: flex;
+    if (!code) {
 
-    justify-content: space-between;
+        sourceCode.textContent =
+            "// No source code available.";
 
-    align-items: center;
+        lineCount.textContent =
+            "0 lines";
 
-    padding: 0 10px;
+        return;
 
-    margin-bottom: 9px;
-
-    color: #7c858e;
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-    letter-spacing: 1px;
-}
+    }
 
 
-#objectCount {
+    sourceCode.textContent = code;
 
-    background: #f0f2f4;
 
-    color: #6b7280;
+    const lines =
+        code.split("\n").length;
 
-    padding: 3px 7px;
 
-    border-radius: 10px;
+    lineCount.textContent =
+        `${lines} lines`;
 
-    font-size: 9px;
 
-    letter-spacing: 0;
+    codeFileName.textContent =
+        reviewData[currentObjectIndex]
+            ?.object_name || "source.abap";
+
 }
 
 
 /* =========================================================
-   OBJECT LIST
+   ATC FINDINGS
 ========================================================= */
 
-.object-list {
+function renderATCChecks(checks) {
 
-    display: flex;
+    atcContainer.innerHTML = "";
 
-    flex-direction: column;
 
-    gap: 3px;
-}
+    if (checks.length === 0) {
 
+        atcContainer.innerHTML = `
 
-.object-item {
+            <div class="empty-state">
 
-    position: relative;
+                <strong>
+                    No ATC findings
+                </strong>
 
-    display: flex;
+                <br><br>
 
-    align-items: center;
+                This object passed the available
+                automated checks.
 
-    padding: 12px 11px;
+            </div>
 
-    border-radius: 8px;
+        `;
 
-    cursor: pointer;
+        return;
 
-    transition: all 0.18s ease;
-}
+    }
 
 
-.object-item:hover {
+    checks.forEach(check => {
 
-    background: #f7f9fa;
-}
+        const severity =
+            String(check.severity || "")
+                .toLowerCase();
 
 
-.object-item.active {
+        let cardType = "info";
 
-    background: #f1f5f8;
-}
+        let icon = "i";
 
 
-.object-item.active::before {
+        if (severity.includes("error")) {
 
-    content: "";
+            cardType = "error";
 
-    position: absolute;
+            icon = "!";
 
-    left: 0;
+        } else if (
+            severity.includes("warning")
+        ) {
 
-    top: 9px;
+            cardType = "warning";
 
-    bottom: 9px;
+            icon = "!";
 
-    width: 3px;
+        }
 
-    background: #303941;
 
-    border-radius: 0 3px 3px 0;
-}
+        const card =
+            document.createElement("div");
 
 
-/* Object status */
+        card.className =
+            `finding-card ${cardType}`;
 
-.object-status {
 
-    width: 7px;
-    height: 7px;
+        card.innerHTML = `
 
-    border-radius: 50%;
+            <div class="finding-indicator">
+                ${icon}
+            </div>
 
-    margin-right: 10px;
 
-    flex-shrink: 0;
-}
+            <div class="finding-body">
 
+                <div class="finding-message">
 
-.object-status.error {
-    background: #dc2626;
-}
+                    ${escapeHtml(
+                        check.message ||
+                        "ATC finding"
+                    )}
 
-.object-status.warning {
-    background: #e6a11a;
-}
+                </div>
 
-.object-status.success {
-    background: #21a366;
-}
 
+                <div class="finding-source">
 
-/* Object information */
+                    ${escapeHtml(
+                        check.source ||
+                        "SAP ATC"
+                    )}
 
-.object-information {
+                </div>
 
-    min-width: 0;
 
-    flex: 1;
-}
+                ${
+                    check.recommendation
+                    ?
+                    `
+                    <div class="finding-recommendation">
 
+                        ${escapeHtml(
+                            check.recommendation
+                        )}
 
-.object-name {
+                    </div>
+                    `
+                    :
+                    ""
+                }
 
-    font-family: Consolas, monospace;
+            </div>
 
-    font-size: 12px;
 
-    font-weight: 600;
+            <span class="finding-severity">
 
-    white-space: nowrap;
+                ${escapeHtml(
+                    check.severity ||
+                    "INFO"
+                ).toUpperCase()}
 
-    overflow: hidden;
+            </span>
 
-    text-overflow: ellipsis;
+        `;
 
-    color: #303841;
-}
 
+        atcContainer.appendChild(card);
 
-.object-meta {
+    });
 
-    display: flex;
-
-    align-items: center;
-
-    gap: 6px;
-
-    margin-top: 4px;
-}
-
-
-.object-type {
-
-    font-size: 9px;
-
-    font-weight: 700;
-
-    color: #8b949e;
-
-    letter-spacing: 0.5px;
-}
-
-
-.finding-count {
-
-    min-width: 20px;
-
-    text-align: center;
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-    color: #747d86;
 }
 
 
 /* =========================================================
-   SIDEBAR BOTTOM
+   AI REVIEW
 ========================================================= */
 
-.sidebar-bottom {
+function renderAIReview(object) {
 
-    padding: 15px 16px;
-
-    border-top: 1px solid #edf0f2;
-
-    background: #ffffff;
-}
+    const reviews =
+        Array.isArray(object.ai_code_review)
+            ? object.ai_code_review
+            : [];
 
 
-.new-review-button {
-
-    width: 100%;
-
-    height: 42px;
-
-    border: 1px solid #d9dee3;
-
-    background: #ffffff;
-
-    border-radius: 7px;
-
-    cursor: pointer;
-
-    font-size: 12px;
-
-    font-weight: 600;
-
-    color: #343b43;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 8px;
-
-    transition: all 0.2s ease;
-}
+    renderOverallAssessment(
+        object.ai_overall_assessment
+    );
 
 
-.new-review-button:hover {
-
-    background: #f6f8f9;
-
-    border-color: #c7cdd3;
-
-    transform: translateY(-1px);
-}
+    aiContainer.innerHTML = "";
 
 
-.plus-icon {
+    if (reviews.length === 0) {
 
-    font-size: 17px;
+        aiContainer.innerHTML = `
 
-    font-weight: 400;
+            <div class="empty-state">
+
+                No AI findings available for this object.
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    reviews.forEach(review => {
+
+        const card =
+            document.createElement("div");
+
+
+        card.className =
+            "ai-card";
+
+
+        const severity =
+            String(review.severity || "")
+                .toLowerCase();
+
+
+        card.innerHTML = `
+
+            <div class="ai-card-header">
+
+                <div class="ai-category">
+
+                    <span>
+                        ✦
+                    </span>
+
+                    ${escapeHtml(
+                        review.category ||
+                        "Code Quality"
+                    )}
+
+                </div>
+
+
+                <span class="ai-severity">
+
+                    ${escapeHtml(
+                        review.severity ||
+                        "INFO"
+                    ).toUpperCase()}
+
+                </span>
+
+            </div>
+
+
+            ${
+                review.findings
+                ?
+                `
+                <div class="ai-comment">
+
+                    <strong>Finding:</strong><br>
+
+                    ${escapeHtml(
+                        review.findings
+                    )}
+
+                </div>
+                `
+                :
+                ""
+            }
+
+
+            ${
+                review.comment
+                ?
+                `
+                <div class="ai-comment">
+
+                    ${escapeHtml(
+                        review.comment
+                    )}
+
+                </div>
+                `
+                :
+                ""
+            }
+
+
+            ${
+                review.recommendation
+                ?
+                `
+                <div class="ai-recommendation">
+
+                    <strong>
+                        Recommendation
+                    </strong>
+
+                    <br><br>
+
+                    ${escapeHtml(
+                        review.recommendation
+                    )}
+
+                </div>
+                `
+                :
+                ""
+            }
+
+
+            ${
+                review.code_reference
+                ?
+                `
+                <div class="code-reference">
+
+                    ${escapeHtml(
+                        review.code_reference
+                    )}
+
+                </div>
+                `
+                :
+                ""
+            }
+
+        `;
+
+
+        aiContainer.appendChild(card);
+
+    });
+
 }
 
 
 /* =========================================================
-   MAIN CONTENT
+   OVERALL AI ASSESSMENT
 ========================================================= */
 
-.main-content {
+function renderOverallAssessment(
+    assessment
+) {
 
-    flex: 1;
+    if (!assessment) {
 
-    min-width: 0;
+        assessmentCard.innerHTML = `
 
-    overflow-y: auto;
+            <div class="assessment-summary">
 
-    padding: 34px 46px 50px;
-}
+                No overall AI assessment available.
 
+            </div>
 
-/* =========================================================
-   OBJECT HEADER
-========================================================= */
+        `;
 
-.object-header {
+        return;
 
-    display: flex;
+    }
 
-    justify-content: space-between;
 
-    align-items: flex-end;
+    const status =
+        String(
+            assessment.status || ""
+        ).toLowerCase();
 
-    margin-bottom: 26px;
-}
 
+    let statusClass = "review";
 
-.breadcrumb {
 
-    display: flex;
+    if (
+        status.includes("pass") ||
+        status.includes("good") ||
+        status.includes("clean") ||
+        status.includes("success")
+    ) {
 
-    align-items: center;
+        statusClass = "good";
 
-    gap: 7px;
+    } else if (
+        status.includes("fail") ||
+        status.includes("critical") ||
+        status.includes("error")
+    ) {
 
-    color: #9aa1a9;
+        statusClass = "critical";
 
-    font-size: 11px;
+    }
 
-    margin-bottom: 10px;
-}
 
+    assessmentCard.innerHTML = `
 
-.breadcrumb-arrow {
+        <div class="assessment-top">
 
-    color: #c5c9ce;
-}
+            <span class="assessment-status ${statusClass}">
 
+                ${escapeHtml(
+                    assessment.status ||
+                    "REVIEW"
+                ).toUpperCase()}
 
-.object-title-row {
+            </span>
 
-    display: flex;
 
-    align-items: center;
+            <span class="assessment-title">
 
-    gap: 15px;
-}
+                Overall Assessment
 
+            </span>
 
-.object-title-row h1 {
+        </div>
 
-    font-family: Consolas, monospace;
 
-    font-size: 25px;
+        <div class="assessment-summary">
 
-    color: #242a30;
+            ${escapeHtml(
+                assessment.Summary ||
+                assessment.summary ||
+                "No summary available."
+            )}
 
-    margin-bottom: 6px;
-}
+        </div>
 
+    `;
 
-.object-title-row p {
-
-    font-size: 12px;
-
-    color: #7d858e;
-
-    max-width: 650px;
-}
-
-
-.object-type-badge {
-
-    border: 1px solid #dfe4e8;
-
-    background: #fafbfc;
-
-    color: #66717b;
-
-    padding: 7px 10px;
-
-    border-radius: 5px;
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-    letter-spacing: 0.6px;
-}
-
-
-/* =========================================================
-   SUMMARY
-========================================================= */
-
-.object-summary {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 20px;
-
-    padding-bottom: 4px;
-}
-
-
-.summary-item {
-
-    display: flex;
-
-    flex-direction: column;
-
-    align-items: flex-end;
-}
-
-
-.summary-number {
-
-    font-size: 19px;
-
-    font-weight: 700;
-
-    color: #303841;
-}
-
-
-.summary-label {
-
-    font-size: 9px;
-
-    color: #969da5;
-
-    margin-top: 2px;
-}
-
-
-.summary-divider {
-
-    width: 1px;
-
-    height: 32px;
-
-    background: #e1e5e8;
 }
 
 
@@ -715,963 +861,332 @@ body {
    TABS
 ========================================================= */
 
-.tabs {
+document
+    .querySelectorAll(".tab")
+    .forEach(tab => {
 
-    display: flex;
+        tab.addEventListener(
+            "click",
+            function () {
 
-    gap: 2px;
+                const selectedTab =
+                    this.dataset.tab;
 
-    border-bottom: 1px solid #dfe3e7;
 
-    margin-bottom: 25px;
-}
+                /*
+                 * Remove active from buttons
+                 */
 
+                document
+                    .querySelectorAll(".tab")
+                    .forEach(t =>
+                        t.classList.remove("active")
+                    );
 
-.tab {
 
-    position: relative;
+                this.classList.add("active");
 
-    border: none;
 
-    background: transparent;
+                /*
+                 * Hide all content
+                 */
 
-    padding: 11px 16px;
+                document
+                    .querySelectorAll(".tab-content")
+                    .forEach(content => {
 
-    font-size: 12px;
+                        content.classList.remove(
+                            "active-tab-content"
+                        );
 
-    color: #858e97;
+                    });
 
-    cursor: pointer;
-}
 
+                /*
+                 * Show selected
+                 */
 
-.tab:hover {
+                const content =
+                    document.getElementById(
+                        selectedTab + "Tab"
+                    );
 
-    color: #343b43;
-}
 
+                if (content) {
 
-.tab.active {
+                    content.classList.add(
+                        "active-tab-content"
+                    );
 
-    color: #252b31;
+                }
 
-    font-weight: 600;
-}
+            }
+        );
 
-
-.tab.active::after {
-
-    content: "";
-
-    position: absolute;
-
-    bottom: -1px;
-
-    left: 14px;
-
-    right: 14px;
-
-    height: 2px;
-
-    background: #303941;
-
-    border-radius: 2px;
-}
-
-
-.tab-count {
-
-    display: inline-flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    min-width: 19px;
-
-    height: 17px;
-
-    margin-left: 5px;
-
-    padding: 0 5px;
-
-    border-radius: 9px;
-
-    background: #f2dddd;
-
-    color: #b33a3a;
-
-    font-size: 9px;
-}
-
-
-.ai-count {
-
-    background: #eeeaf7;
-
-    color: #7562a4;
-}
-
-
-/* =========================================================
-   TAB CONTENT
-========================================================= */
-
-.tab-content {
-
-    display: none;
-}
-
-
-.tab-content.active-tab-content {
-
-    display: block;
-}
-
-
-/* =========================================================
-   SECTION HEADING
-========================================================= */
-
-.section-heading {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    margin-bottom: 13px;
-}
-
-
-.section-title {
-
-    font-size: 11px;
-
-    font-weight: 700;
-
-    letter-spacing: 0.9px;
-
-    color: #4a535c;
-}
-
-
-.section-subtitle {
-
-    font-size: 10px;
-
-    color: #9aa1a8;
-
-    margin-top: 4px;
-}
-
-
-.line-count {
-
-    font-size: 10px;
-
-    color: #9299a1;
-}
-
-
-.ai-label {
-
-    font-size: 9px;
-
-    font-weight: 700;
-
-    color: #7562a4;
-
-    background: #f0ecf8;
-
-    padding: 6px 9px;
-
-    border-radius: 5px;
-
-    letter-spacing: 0.5px;
-}
-
-
-/* =========================================================
-   CODE EDITOR
-========================================================= */
-
-.code-editor {
-
-    background: #20252b;
-
-    border-radius: 9px;
-
-    overflow: hidden;
-
-    box-shadow:
-        0 4px 16px rgba(0, 0, 0, 0.10);
-}
-
-
-.editor-header {
-
-    height: 42px;
-
-    background: #292f36;
-
-    border-bottom: 1px solid #363d45;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    padding: 0 15px;
-
-    color: #9ea6ae;
-
-    font-size: 10px;
-}
-
-
-.editor-file {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 8px;
-}
-
-
-.file-dot {
-
-    width: 7px;
-    height: 7px;
-
-    border-radius: 50%;
-
-    background: #7e8790;
-}
-
-
-.editor-language {
-
-    letter-spacing: 0.7px;
-
-    font-weight: 600;
-}
-
-
-/*
-    Important:
-    Code window has fixed height so it doesn't
-    take over the entire page.
-*/
-
-.code-container {
-
-    height: 430px;
-
-    overflow: auto;
-
-    scrollbar-width: thin;
-
-    scrollbar-color: #4b535c #20252b;
-}
-
-
-.code-container pre {
-
-    margin: 0;
-
-    padding: 20px 22px;
-
-    color: #d8dce0;
-
-    font-family: Consolas, "Courier New", monospace;
-
-    font-size: 12px;
-
-    line-height: 1.7;
-
-    white-space: pre;
-
-    min-width: max-content;
-}
-
-
-/* =========================================================
-   FINDINGS
-========================================================= */
-
-.findings-container {
-
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 10px;
-}
-
-
-.finding-card {
-
-    display: flex;
-
-    align-items: flex-start;
-
-    gap: 13px;
-
-    background: #ffffff;
-
-    border: 1px solid #e3e7ea;
-
-    border-radius: 8px;
-
-    padding: 17px;
-
-    transition: 0.2s;
-}
-
-
-.finding-card:hover {
-
-    border-color: #d2d7dc;
-
-    box-shadow:
-        0 4px 12px rgba(0, 0, 0, 0.04);
-}
-
-
-.finding-indicator {
-
-    width: 28px;
-    height: 28px;
-
-    border-radius: 7px;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-size: 12px;
-
-    font-weight: 700;
-
-    flex-shrink: 0;
-}
-
-
-.finding-card.error {
-
-    border-left: 3px solid #dc4545;
-}
-
-
-.finding-card.warning {
-
-    border-left: 3px solid #e1a52a;
-}
-
-
-.finding-card.info {
-
-    border-left: 3px solid #6686a8;
-}
-
-
-.finding-card.error .finding-indicator {
-
-    background: #fbe9e9;
-
-    color: #c43838;
-}
-
-
-.finding-card.warning .finding-indicator {
-
-    background: #fff4dc;
-
-    color: #b47a13;
-}
-
-
-.finding-card.info .finding-indicator {
-
-    background: #eaf0f6;
-
-    color: #54708c;
-}
-
-
-.finding-body {
-
-    flex: 1;
-}
-
-
-.finding-message {
-
-    font-size: 13px;
-
-    font-weight: 600;
-
-    color: #303841;
-
-    margin-bottom: 6px;
-}
-
-
-.finding-source {
-
-    font-size: 10px;
-
-    color: #929aa2;
-
-    margin-bottom: 9px;
-}
-
-
-.finding-recommendation {
-
-    font-size: 11px;
-
-    line-height: 1.55;
-
-    color: #646d76;
-}
-
-
-.finding-severity {
-
-    font-size: 8px;
-
-    font-weight: 700;
-
-    padding: 5px 7px;
-
-    border-radius: 4px;
-
-    letter-spacing: 0.5px;
-}
-
-
-.finding-card.error .finding-severity {
-
-    background: #fbe5e5;
-
-    color: #b83232;
-}
-
-
-.finding-card.warning .finding-severity {
-
-    background: #fff1d3;
-
-    color: #a66e0b;
-}
-
-
-.finding-card.info .finding-severity {
-
-    background: #e9f0f6;
-
-    color: #4e6b85;
-}
-
-
-/* =========================================================
-   ASSESSMENT
-========================================================= */
-
-.assessment-card {
-
-    background: #ffffff;
-
-    border: 1px solid #e2e6e9;
-
-    border-radius: 9px;
-
-    padding: 19px;
-
-    margin-bottom: 18px;
-}
-
-
-.assessment-top {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 12px;
-
-    margin-bottom: 12px;
-}
-
-
-.assessment-status {
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-    padding: 6px 9px;
-
-    border-radius: 5px;
-}
-
-
-.assessment-status.good {
-
-    background: #e7f5ed;
-
-    color: #21834b;
-}
-
-
-.assessment-status.review {
-
-    background: #fff1d7;
-
-    color: #a66e0b;
-}
-
-
-.assessment-status.critical {
-
-    background: #fbe5e5;
-
-    color: #b83232;
-}
-
-
-.assessment-title {
-
-    font-size: 13px;
-
-    font-weight: 700;
-}
-
-
-.assessment-summary {
-
-    color: #626b74;
-
-    font-size: 12px;
-
-    line-height: 1.6;
-}
-
-
-/* =========================================================
-   AI FINDINGS
-========================================================= */
-
-.ai-findings-container {
-
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 11px;
-}
-
-
-.ai-card {
-
-    background: #ffffff;
-
-    border: 1px solid #e1e5e8;
-
-    border-radius: 8px;
-
-    padding: 18px;
-}
-
-
-.ai-card-header {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    margin-bottom: 11px;
-}
-
-
-.ai-category {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 8px;
-
-    font-size: 13px;
-
-    font-weight: 700;
-}
-
-
-.ai-severity {
-
-    font-size: 8px;
-
-    font-weight: 700;
-
-    padding: 5px 7px;
-
-    border-radius: 4px;
-}
-
-
-.ai-comment {
-
-    font-size: 11px;
-
-    color: #626b74;
-
-    line-height: 1.6;
-
-    margin-bottom: 12px;
-}
-
-
-.ai-recommendation {
-
-    border-left: 3px solid #8b7bb1;
-
-    background: #f8f6fb;
-
-    padding: 12px;
-
-    font-size: 11px;
-
-    color: #5d566d;
-
-    line-height: 1.55;
-}
-
-
-.code-reference {
-
-    margin-top: 12px;
-
-    background: #20252b;
-
-    color: #d4d8dc;
-
-    padding: 11px;
-
-    border-radius: 5px;
-
-    font-family: Consolas, monospace;
-
-    font-size: 10px;
-
-    overflow-x: auto;
-}
-
-
-/* =========================================================
-   EMPTY STATE
-========================================================= */
-
-.empty-state {
-
-    background: #ffffff;
-
-    border: 1px dashed #d9dee3;
-
-    border-radius: 9px;
-
-    padding: 40px;
-
-    text-align: center;
-
-    color: #9098a0;
-
-    font-size: 12px;
-}
+    });
 
 
 /* =========================================================
    CHATBOT
 ========================================================= */
 
-.chatbot {
 
-    position: fixed;
+/*
+ * IMPORTANT:
+ *
+ * Chatbot only opens when user clicks
+ * the object itself.
+ *
+ * We add a small chat action when
+ * hovering/clicking the object.
+ */
 
-    left: 18px;
 
-    bottom: 73px;
+/*
+ * Instead of opening automatically when
+ * selecting an object, we'll provide
+ * a keyboard/mouse interaction.
+ *
+ * Double-click an object to open chatbot.
+ */
 
-    width: 330px;
+objectList.addEventListener(
+    "dblclick",
+    function (event) {
 
-    height: 410px;
+        const objectItem =
+            event.target.closest(".object-item");
 
-    background: #ffffff;
 
-    border: 1px solid #dfe3e7;
+        if (!objectItem) {
 
-    border-radius: 11px;
+            return;
 
-    box-shadow:
-        0 15px 45px rgba(20, 27, 35, 0.18);
+        }
 
-    display: none;
 
-    flex-direction: column;
+        const items =
+            Array.from(
+                document.querySelectorAll(
+                    ".object-item"
+                )
+            );
 
-    overflow: hidden;
 
-    z-index: 100;
+        const index =
+            items.indexOf(objectItem);
+
+
+        if (index >= 0) {
+
+            selectObject(index);
+
+            openChat();
+
+        }
+
+    }
+);
+
+
+/*
+ * Open chatbot
+ */
+
+function openChat() {
+
+    chatbot.classList.add("open");
+
+    chatInput.focus();
+
 }
 
 
-.chatbot.open {
+/*
+ * Close chatbot
+ */
 
-    display: flex;
+closeChat.addEventListener(
+    "click",
+    function () {
 
-    animation: chatbotIn 0.2s ease;
-}
+        chatbot.classList.remove("open");
+
+    }
+);
 
 
-@keyframes chatbotIn {
+/*
+ * Submit chatbot
+ *
+ * For now this intentionally does nothing
+ * except display the user's message.
+ *
+ * Later you can replace this with:
+ *
+ * fetch("/chat", {...})
+ */
 
-    from {
+chatSubmit.addEventListener(
+    "click",
+    submitChat
+);
 
-        opacity: 0;
 
-        transform: translateY(10px);
+chatInput.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (event.key === "Enter") {
+
+            submitChat();
+
+        }
+
+    }
+);
+
+
+function submitChat() {
+
+    const message =
+        chatInput.value.trim();
+
+
+    if (!message) {
+
+        return;
 
     }
 
-    to {
 
-        opacity: 1;
+    /*
+     * Display user message
+     */
 
-        transform: translateY(0);
+    const userMessage =
+        document.createElement("div");
 
-    }
-}
 
+    userMessage.style.cssText = `
+        display:block;
+        width:fit-content;
+        max-width:85%;
+        margin:8px 0 8px auto;
+        background:#303941;
+        color:#ffffff;
+        padding:9px 11px;
+        border-radius:8px;
+        font-size:10px;
+        line-height:1.5;
+    `;
 
-/* Chat header */
 
-.chatbot-header {
+    userMessage.textContent =
+        message;
 
-    height: 60px;
 
-    padding: 0 15px;
+    chatMessages.appendChild(
+        userMessage
+    );
 
-    border-bottom: 1px solid #edf0f2;
 
-    display: flex;
+    chatInput.value = "";
 
-    align-items: center;
 
-    justify-content: space-between;
-}
+    /*
+     * BOT METHOD INTENTIONALLY EMPTY
+     *
+     * Later:
+     *
+     * fetch("/chat", {
+     *     method: "POST",
+     *     headers: {
+     *         "Content-Type": "application/json"
+     *     },
+     *     body: JSON.stringify({
+     *         object_name:
+     *             reviewData[currentObjectIndex]
+     *                 .object_name,
+     *         message: message
+     *     })
+     * })
+     *
+     */
 
 
-.chatbot-title {
+    chatMessages.scrollTop =
+        chatMessages.scrollHeight;
 
-    display: flex;
-
-    align-items: center;
-
-    gap: 10px;
-}
-
-
-.bot-icon {
-
-    width: 32px;
-    height: 32px;
-
-    border-radius: 8px;
-
-    background: #303941;
-
-    color: #ffffff;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-}
-
-
-.chatbot-title strong {
-
-    display: block;
-
-    font-size: 12px;
-}
-
-
-.chatbot-title small {
-
-    display: block;
-
-    color: #929aa2;
-
-    font-size: 9px;
-
-    margin-top: 3px;
-}
-
-
-.close-chat {
-
-    border: none;
-
-    background: transparent;
-
-    font-size: 21px;
-
-    color: #8d959d;
-
-    cursor: pointer;
-}
-
-
-/* Chat messages */
-
-.chat-messages {
-
-    flex: 1;
-
-    padding: 15px;
-
-    overflow-y: auto;
-
-    background: #fafbfc;
-}
-
-
-.bot-message {
-
-    display: inline-block;
-
-    max-width: 90%;
-
-    background: #ffffff;
-
-    border: 1px solid #e5e8eb;
-
-    border-radius: 8px;
-
-    padding: 10px 12px;
-
-    font-size: 10px;
-
-    color: #59636c;
-
-    line-height: 1.5;
-}
-
-
-/* Input */
-
-.chat-input-area {
-
-    padding: 10px;
-
-    border-top: 1px solid #e8ebed;
-
-    display: flex;
-
-    gap: 7px;
-
-    background: #ffffff;
-}
-
-
-.chat-input-area input {
-
-    flex: 1;
-
-    height: 34px;
-
-    border: 1px solid #dfe3e7;
-
-    border-radius: 6px;
-
-    padding: 0 10px;
-
-    outline: none;
-
-    font-size: 10px;
-}
-
-
-.chat-input-area input:focus {
-
-    border-color: #aeb6bd;
-}
-
-
-.chat-input-area button {
-
-    width: 35px;
-
-    height: 34px;
-
-    border: none;
-
-    border-radius: 6px;
-
-    background: #303941;
-
-    color: #ffffff;
-
-    cursor: pointer;
-
-    font-size: 15px;
 }
 
 
 /* =========================================================
-   RESPONSIVE
+   NEW REVIEW
 ========================================================= */
 
-@media (max-width: 900px) {
+newReviewBtn.addEventListener(
+    "click",
+    function () {
 
-    .sidebar {
-        width: 240px;
-    }
+        /*
+         * Go back to first page.
+         *
+         * Change this filename if your
+         * first page has another name.
+         */
 
-    .main-content {
-        padding: 25px;
+        window.location.href =
+            "index.html";
+
     }
+);
+
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+function showEmptyState() {
+
+    objectName.textContent =
+        "No objects found";
+
+    objectDescription.textContent =
+        "No review objects were returned by the API.";
+
+    sourceCode.textContent =
+        "// No source code available.";
+
+    atcContainer.innerHTML = `
+        <div class="empty-state">
+            No ATC findings available.
+        </div>
+    `;
+
+    aiContainer.innerHTML = `
+        <div class="empty-state">
+            No AI review available.
+        </div>
+    `;
 
 }
 
 
-@media (max-width: 700px) {
+/* =========================================================
+   HTML ESCAPE
+========================================================= */
 
-    .sidebar {
-        display: none;
-    }
+function escapeHtml(value) {
 
-    .main-content {
-        padding: 20px;
-    }
+    const div =
+        document.createElement("div");
 
-    .object-header {
-        align-items: flex-start;
+    div.textContent =
+        value == null
+            ? ""
+            : String(value);
 
-        flex-direction: column;
-
-        gap: 20px;
-    }
+    return div.innerHTML;
 
 }
