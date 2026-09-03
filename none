@@ -1,575 +1,1744 @@
-<!DOCTYPE html>
-<html lang="en">
+/* =====================================================
+   GLOBAL
+===================================================== */
 
-<head>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-    <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+:root {
 
-    <title>SAP Code Review</title>
+    --bg: #f5f7f9;
 
-    <link
-        rel="stylesheet"
-        href="review.css"
-    >
+    --white: #ffffff;
 
-</head>
+    --text: #18212b;
 
+    --muted: #6b7280;
 
-<body>
+    --border: #e2e7ec;
 
+    --blue: #1769aa;
 
-<!-- =====================================================
-     HEADER
-====================================================== -->
+    --blue-light: #edf5fb;
 
-<header class="top-header">
+    --green: #159447;
 
-    <div class="brand-section">
+    --red: #d92d20;
 
-        <div class="brand-mark">
-            MC
-        </div>
+    --orange: #d98200;
 
-        <div>
+    --purple: #6851d9;
 
-            <div class="logo">
-                SAP CODE REVIEW
-            </div>
+    --dark: #171c22;
 
-            <div class="logo-subtitle">
-                Intelligent ABAP Quality Analysis
-            </div>
+}
 
-        </div>
 
-    </div>
+body {
 
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
 
-    <div class="connection">
+    background: var(--bg);
 
-        <span
-            id="connectionDot"
-            class="status-dot disconnected"
-        ></span>
+    color: var(--text);
 
-        <span id="connectionText">
-            SAP Disconnected
-        </span>
+    min-height: 100vh;
 
-    </div>
+}
 
-</header>
 
+/* =====================================================
+   HEADER
+===================================================== */
 
+.top-header {
 
-<!-- =====================================================
-     MAIN APPLICATION
-====================================================== -->
+    height: 68px;
 
-<div class="app-layout">
+    background: var(--white);
 
+    border-bottom:
+        1px solid var(--border);
 
-    <!-- =================================================
-         SIDEBAR
-    ================================================== -->
+    display: flex;
 
-    <aside class="sidebar">
+    align-items: center;
 
+    justify-content: space-between;
 
-        <!-- Transport -->
+    padding: 0 30px;
 
-        <div class="sidebar-section">
+}
 
-            <div class="sidebar-label">
-                TRANSPORT REQUEST
-            </div>
 
-            <div
-                id="transportNumber"
-                class="transport-number"
-            >
-                -
-            </div>
+.brand-section {
 
-        </div>
+    display: flex;
 
+    align-items: center;
 
+    gap: 12px;
 
-        <!-- Objects -->
+}
 
-        <div class="sidebar-section objects-section">
 
-            <div class="objects-header">
+.brand-mark {
 
-                <span class="sidebar-label">
-                    OBJECTS
-                </span>
+    width: 34px;
 
-                <span
-                    id="objectCount"
-                    class="object-count"
-                >
-                    0
-                </span>
+    height: 34px;
 
-            </div>
+    background: #171c22;
 
+    color: white;
 
-            <div
-                id="objectList"
-                class="object-list"
-            >
-                <!-- Objects inserted by JS -->
+    border-radius: 7px;
 
-            </div>
+    display: flex;
 
-        </div>
+    align-items: center;
 
+    justify-content: center;
 
-        <!-- New Review -->
+    font-size: 11px;
 
-        <button
-            class="new-review-button"
-            onclick="newReview()"
-        >
+    font-weight: 800;
 
-            <span>
-                +
-            </span>
+    letter-spacing: .5px;
 
-            New Review
+}
 
-        </button>
 
+.logo {
 
-    </aside>
+    font-size: 15px;
 
+    font-weight: 750;
 
+    letter-spacing: .7px;
 
-    <!-- =================================================
-         MAIN CONTENT
-    ================================================== -->
+}
 
-    <main class="main-content">
 
+.logo-subtitle {
 
-        <!-- PAGE HEADER -->
+    font-size: 10px;
 
-        <div class="page-header">
+    color: #89919a;
 
+    margin-top: 3px;
 
-            <div class="header-left">
+}
 
-                <div class="breadcrumb">
 
-                    TRANSPORT
-                    <span>/</span>
+.connection {
 
-                    <span id="breadcrumbObject">
-                        -
-                    </span>
+    display: flex;
 
-                </div>
+    align-items: center;
 
+    gap: 8px;
 
-                <h1 id="objectName">
-                    -
-                </h1>
+    font-size: 12px;
 
+    color: #69727c;
 
-                <p id="objectDescription">
-                    Select an object from the transport
-                </p>
+}
 
-            </div>
 
+.status-dot {
 
-            <div
-                id="objectTypeBadge"
-                class="object-badge"
-            >
-                -
-            </div>
+    width: 8px;
 
-        </div>
+    height: 8px;
 
+    border-radius: 50%;
 
+}
 
-        <!-- =================================================
-             TABS
-        ================================================== -->
 
-        <div class="tabs">
+.status-dot.connected {
 
-            <button
-                class="tab active"
-                data-tab="source"
-                onclick="switchTab('source')"
-            >
+    background: var(--green);
 
-                <span class="tab-icon">
-                    &lt;/&gt;
-                </span>
+    box-shadow:
+        0 0 0 4px rgba(21,148,71,.10);
 
-                Source Code
+}
 
-            </button>
 
+.status-dot.disconnected {
 
-            <button
-                class="tab"
-                data-tab="atc"
-                onclick="switchTab('atc')"
-            >
+    background: var(--red);
 
-                <span class="tab-icon">
-                    !
-                </span>
+    box-shadow:
+        0 0 0 4px rgba(217,45,32,.10);
 
-                ATC Results
+}
 
-                <span
-                    id="atcCount"
-                    class="tab-count"
-                >
-                    0
-                </span>
 
-            </button>
 
+/* =====================================================
+   LAYOUT
+===================================================== */
 
-            <button
-                class="tab"
-                data-tab="ai"
-                onclick="switchTab('ai')"
-            >
+.app-layout {
 
-                <span class="tab-icon">
-                    ✦
-                </span>
+    display: flex;
 
-                AI Review
+    min-height:
+        calc(100vh - 68px);
 
-                <span
-                    id="aiCount"
-                    class="tab-count ai-count"
-                >
-                    0
-                </span>
+}
 
-            </button>
 
-        </div>
+/* =====================================================
+   SIDEBAR
+===================================================== */
 
+.sidebar {
 
+    width: 280px;
 
-        <!-- =================================================
-             SOURCE TAB
-        ================================================== -->
+    background: var(--white);
 
-        <section
-            id="sourceTab"
-            class="tab-content active"
-        >
+    border-right:
+        1px solid var(--border);
 
+    padding: 25px 16px;
 
-            <div class="section-heading">
+    display: flex;
 
-                <div>
+    flex-direction: column;
 
-                    <h2>
-                        ABAP SOURCE CODE
-                    </h2>
+}
 
-                    <p>
-                        Original source retrieved from SAP
-                    </p>
 
-                </div>
+.sidebar-section {
 
+    margin-bottom: 28px;
 
-                <div
-                    id="lineCount"
-                    class="line-count"
-                >
-                    0 lines
-                </div>
+}
 
-            </div>
 
+.sidebar-label {
 
+    font-size: 10px;
 
-            <div class="code-window">
+    font-weight: 800;
 
+    letter-spacing: 1.1px;
 
-                <div class="code-toolbar">
+    color: #89919a;
 
-                    <div class="file-info">
+}
 
-                        <span class="file-icon">
-                            ABAP
-                        </span>
 
-                        <span id="codeFileName">
-                            -
-                        </span>
+.transport-number {
 
-                    </div>
+    margin-top: 10px;
 
+    background: #f4f6f8;
 
-                    <div class="code-language">
-                        ABAP
-                    </div>
+    border: 1px solid #e8ebee;
 
-                </div>
+    border-radius: 7px;
 
+    padding: 12px;
 
-                <div class="code-body">
+    font-family: Consolas, monospace;
 
-                    <div
-                        id="lineNumbers"
-                        class="line-numbers"
-                    >
-                    </div>
+    font-size: 13px;
 
+    font-weight: 700;
 
-                    <pre
-                        id="sourceCode"
-                        class="source-code"
-                    ></pre>
+}
 
-                </div>
 
-            </div>
+.objects-header {
 
-        </section>
+    display: flex;
 
+    justify-content: space-between;
 
+    align-items: center;
 
-        <!-- =================================================
-             ATC TAB
-        ================================================== -->
+    margin-bottom: 10px;
 
-        <section
-            id="atcTab"
-            class="tab-content"
-        >
+}
 
 
-            <div class="section-heading">
+.object-count {
 
-                <div>
+    font-size: 10px;
 
-                    <h2>
-                        ATC FINDINGS
-                    </h2>
+    color: #89919a;
 
-                    <p>
-                        Automated Test Cockpit analysis
-                    </p>
+}
 
-                </div>
 
+.object-list {
 
-                <div
-                    id="atcSummary"
-                    class="result-summary"
-                >
-                    0 findings
-                </div>
+    display: flex;
 
-            </div>
+    flex-direction: column;
 
+    gap: 3px;
 
-            <div
-                id="atcContainer"
-                class="findings-container"
-            >
-                <!-- ATC findings inserted by JS -->
+}
 
-            </div>
 
-        </section>
+/* OBJECT */
 
+.object-row {
 
+    display: flex;
 
-        <!-- =================================================
-             AI TAB
-        ================================================== -->
+    align-items: center;
 
-        <section
-            id="aiTab"
-            class="tab-content"
-        >
+    gap: 10px;
 
+    padding: 11px 9px;
 
-            <div class="section-heading">
+    border-radius: 7px;
 
-                <div>
+    cursor: pointer;
 
-                    <h2>
-                        AI CODE REVIEW
-                    </h2>
+    transition:
+        background .15s ease,
+        transform .15s ease;
 
-                    <p>
-                        Intelligent analysis of your ABAP implementation
-                    </p>
+}
 
-                </div>
 
+.object-row:hover {
 
-                <div class="ai-label">
-                    AI ANALYSIS
-                </div>
+    background: #f5f7f9;
 
-            </div>
+}
 
 
+.object-row.active {
 
-            <!-- Overall Assessment -->
+    background: var(--blue-light);
 
-            <div
-                id="overallAssessment"
-                class="assessment-card"
-            >
-                <!-- Generated by JS -->
-            </div>
+}
 
 
+.object-icon {
 
-            <!-- AI Findings -->
+    width: 30px;
 
-            <div
-                id="aiContainer"
-                class="ai-findings-container"
-            >
-                <!-- AI findings inserted by JS -->
-            </div>
+    height: 30px;
 
-        </section>
+    flex-shrink: 0;
 
+    border-radius: 6px;
 
-    </main>
+    display: flex;
 
-</div>
+    align-items: center;
 
+    justify-content: center;
 
+    font-size: 9px;
 
-<!-- =====================================================
-     CHATBOT
-====================================================== -->
+    font-weight: 800;
 
-<div
-    id="chatbot"
-    class="chatbot"
->
+}
 
 
-    <!-- Chat Header -->
+.class-icon {
 
-    <div class="chat-header">
+    background: #e9f1fb;
 
-        <div class="chat-title">
+    color: #24649b;
 
-            <div class="bot-icon">
-                ✦
-            </div>
+}
 
-            <div>
 
-                <div class="bot-name">
-                    ABAP Assistant
-                </div>
+.program-icon {
 
-                <div class="bot-status">
-                    Ask about this object
-                </div>
+    background: #edf5ed;
 
-            </div>
+    color: #2b7d42;
 
-        </div>
+}
 
 
-        <button
-            class="chat-close"
-            onclick="toggleChat()"
-        >
-            ×
-        </button>
+.ddl-icon {
 
-    </div>
+    background: #f3edfb;
 
+    color: #7652a8;
 
+}
 
-    <!-- Messages -->
 
-    <div
-        id="chatMessages"
-        class="chat-messages"
-    >
+.service-icon {
 
-        <div class="bot-message">
+    background: #fff4e7;
 
-            Select an object to start discussing
-            its code and findings.
+    color: #a36116;
 
-        </div>
+}
 
-    </div>
 
+.object-details {
 
+    min-width: 0;
 
-    <!-- Input -->
+    flex: 1;
 
-    <div class="chat-input-area">
+}
 
-        <textarea
-            id="chatInput"
-            placeholder="Ask about this object..."
-            rows="1"
-        ></textarea>
 
+.object-name {
 
-        <button
-            class="chat-submit"
-            onclick="submitChat()"
-        >
-            ↑
-        </button>
+    font-family: Consolas, monospace;
 
-    </div>
+    font-size: 11px;
 
-</div>
+    font-weight: 700;
 
+    white-space: nowrap;
 
+    overflow: hidden;
 
-<!-- Floating Chat Button -->
+    text-overflow: ellipsis;
 
-<button
-    id="chatButton"
-    class="chat-button"
-    onclick="toggleChat()"
->
+}
 
-    <span class="chat-button-icon">
-        ✦
-    </span>
 
-    <span>
-        Ask AI
-    </span>
+.object-type {
 
-</button>
+    color: #8a929b;
 
+    font-size: 9px;
 
+    margin-top: 3px;
 
-<script src="review.js"></script>
+}
 
-</body>
 
-</html>
+.object-findings {
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: flex-end;
+
+    gap: 2px;
+
+}
+
+
+.error-badge,
+.warning-badge,
+.clean-badge {
+
+    font-size: 8px;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+
+}
+
+
+.error-badge {
+
+    color: var(--red);
+
+}
+
+
+.warning-badge {
+
+    color: var(--orange);
+
+}
+
+
+.clean-badge {
+
+    color: var(--green);
+
+}
+
+
+.arrow {
+
+    color: #aab1b8;
+
+    font-size: 14px;
+
+}
+
+
+/* NEW REVIEW */
+
+.new-review-button {
+
+    margin-top: auto;
+
+    width: 100%;
+
+    padding: 11px;
+
+    border: 1px solid var(--border);
+
+    background: white;
+
+    border-radius: 7px;
+
+    font-size: 12px;
+
+    font-weight: 650;
+
+    color: #4d5660;
+
+    cursor: pointer;
+
+}
+
+
+.new-review-button:hover {
+
+    background: #f6f8fa;
+
+}
+
+
+.new-review-button span {
+
+    margin-right: 5px;
+
+    font-size: 15px;
+
+}
+
+
+
+/* =====================================================
+   MAIN
+===================================================== */
+
+.main-content {
+
+    flex: 1;
+
+    min-width: 0;
+
+    padding: 30px 42px 60px;
+
+    max-width: 1450px;
+
+}
+
+
+/* =====================================================
+   PAGE HEADER
+===================================================== */
+
+.page-header {
+
+    display: flex;
+
+    align-items: flex-start;
+
+    justify-content: space-between;
+
+    margin-bottom: 22px;
+
+}
+
+
+.breadcrumb {
+
+    font-size: 10px;
+
+    color: #8b939c;
+
+    letter-spacing: .5px;
+
+    margin-bottom: 8px;
+
+}
+
+
+.breadcrumb span {
+
+    margin: 0 5px;
+
+}
+
+
+.page-header h1 {
+
+    font-family: Consolas, monospace;
+
+    font-size: 24px;
+
+    letter-spacing: -.5px;
+
+}
+
+
+.page-header p {
+
+    color: #7b838d;
+
+    font-size: 12px;
+
+    margin-top: 7px;
+
+}
+
+
+.object-badge {
+
+    background: #eef1f4;
+
+    color: #626b75;
+
+    border-radius: 5px;
+
+    padding: 7px 11px;
+
+    font-size: 10px;
+
+    font-weight: 800;
+
+}
+
+
+
+/* =====================================================
+   TABS
+===================================================== */
+
+.tabs {
+
+    display: flex;
+
+    gap: 4px;
+
+    border-bottom:
+        1px solid var(--border);
+
+    margin-bottom: 25px;
+
+}
+
+
+.tab {
+
+    border: none;
+
+    background: transparent;
+
+    padding: 12px 17px;
+
+    color: #77808a;
+
+    font-size: 12px;
+
+    cursor: pointer;
+
+    border-bottom: 2px solid transparent;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+}
+
+
+.tab:hover {
+
+    color: #303942;
+
+}
+
+
+.tab.active {
+
+    color: #1e2933;
+
+    font-weight: 700;
+
+    border-bottom-color:
+        var(--blue);
+
+}
+
+
+.tab-icon {
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+}
+
+
+.tab-count {
+
+    background: #feeceb;
+
+    color: var(--red);
+
+    padding: 2px 6px;
+
+    border-radius: 10px;
+
+    font-size: 8px;
+
+    font-weight: 800;
+
+}
+
+
+.ai-count {
+
+    background: #efecff;
+
+    color: var(--purple);
+
+}
+
+
+
+/* =====================================================
+   TAB CONTENT
+===================================================== */
+
+.tab-content {
+
+    display: none;
+
+}
+
+
+.tab-content.active {
+
+    display: block;
+
+}
+
+
+/* =====================================================
+   SECTION HEADER
+===================================================== */
+
+.section-heading {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    margin-bottom: 12px;
+
+}
+
+
+.section-heading h2 {
+
+    font-size: 12px;
+
+    letter-spacing: .7px;
+
+}
+
+
+.section-heading p {
+
+    color: #8a929b;
+
+    font-size: 10px;
+
+    margin-top: 4px;
+
+}
+
+
+.line-count,
+.result-summary {
+
+    color: #8a929b;
+
+    font-size: 10px;
+
+}
+
+
+.ai-label {
+
+    background: #f0edff;
+
+    color: var(--purple);
+
+    padding: 6px 9px;
+
+    border-radius: 5px;
+
+    font-size: 8px;
+
+    font-weight: 800;
+
+    letter-spacing: .4px;
+
+}
+
+
+
+/* =====================================================
+   CODE WINDOW
+===================================================== */
+
+.code-window {
+
+    background: var(--dark);
+
+    border-radius: 8px;
+
+    overflow: hidden;
+
+    box-shadow:
+        0 5px 20px rgba(0,0,0,.10);
+
+}
+
+
+.code-toolbar {
+
+    height: 42px;
+
+    background: #22282f;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    padding: 0 15px;
+
+    color: #9da5ad;
+
+    font-size: 10px;
+
+}
+
+
+.file-info {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+}
+
+
+.file-icon {
+
+    border: 1px solid #56606a;
+
+    border-radius: 4px;
+
+    padding: 3px 5px;
+
+    font-size: 7px;
+
+    font-weight: 800;
+
+}
+
+
+.code-language {
+
+    color: #77818b;
+
+}
+
+
+.code-body {
+
+    display: flex;
+
+    height: 440px;
+
+    overflow: auto;
+
+}
+
+
+.line-numbers {
+
+    width: 52px;
+
+    flex-shrink: 0;
+
+    background: #1b2026;
+
+    color: #606973;
+
+    padding: 20px 10px;
+
+    text-align: right;
+
+    font-family: Consolas, monospace;
+
+    font-size: 12px;
+
+    line-height: 1.7;
+
+    user-select: none;
+
+}
+
+
+.source-code {
+
+    margin: 0;
+
+    padding: 20px;
+
+    color: #d8dde2;
+
+    font-family: Consolas, monospace;
+
+    font-size: 12px;
+
+    line-height: 1.7;
+
+    white-space: pre;
+
+    min-width: max-content;
+
+}
+
+
+
+/* =====================================================
+   ATC FINDINGS
+===================================================== */
+
+.findings-container {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10px;
+
+}
+
+
+.finding {
+
+    background: white;
+
+    border: 1px solid var(--border);
+
+    border-left-width: 4px;
+
+    border-radius: 7px;
+
+    padding: 16px;
+
+    display: flex;
+
+    gap: 13px;
+
+}
+
+
+.finding.error {
+
+    border-left-color:
+        var(--red);
+
+}
+
+
+.finding.warning {
+
+    border-left-color:
+        var(--orange);
+
+}
+
+
+.finding-icon {
+
+    width: 25px;
+
+    height: 25px;
+
+    flex-shrink: 0;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+}
+
+
+.finding.error .finding-icon {
+
+    background: #feeceb;
+
+    color: var(--red);
+
+}
+
+
+.finding.warning .finding-icon {
+
+    background: #fff4df;
+
+    color: var(--orange);
+
+}
+
+
+.finding-content {
+
+    flex: 1;
+
+}
+
+
+.finding-message {
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+    margin-bottom: 6px;
+
+}
+
+
+.finding-source {
+
+    color: #89919a;
+
+    font-family: Consolas, monospace;
+
+    font-size: 10px;
+
+    margin-bottom: 9px;
+
+}
+
+
+.finding-recommendation {
+
+    color: #59636d;
+
+    font-size: 11px;
+
+    line-height: 1.6;
+
+}
+
+
+.severity-label {
+
+    align-self: flex-start;
+
+    font-size: 8px;
+
+    font-weight: 800;
+
+    padding: 5px 7px;
+
+    border-radius: 4px;
+
+}
+
+
+.error-label {
+
+    background: #feeceb;
+
+    color: var(--red);
+
+}
+
+
+.warning-label {
+
+    background: #fff4df;
+
+    color: var(--orange);
+
+}
+
+
+.no-results {
+
+    background: white;
+
+    border: 1px solid var(--border);
+
+    border-radius: 8px;
+
+    padding: 45px;
+
+    text-align: center;
+
+    color: #7d858e;
+
+    font-size: 12px;
+
+}
+
+
+.no-results-icon {
+
+    font-size: 28px;
+
+    margin-bottom: 10px;
+
+}
+
+
+
+/* =====================================================
+   AI REVIEW
+===================================================== */
+
+.assessment-card {
+
+    background: white;
+
+    border: 1px solid var(--border);
+
+    border-radius: 8px;
+
+    padding: 18px;
+
+    margin-bottom: 16px;
+
+}
+
+
+.assessment-header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 10px;
+
+}
+
+
+.assessment-title {
+
+    font-size: 12px;
+
+    font-weight: 800;
+
+    letter-spacing: .4px;
+
+}
+
+
+.assessment-status {
+
+    font-size: 8px;
+
+    font-weight: 800;
+
+    padding: 5px 8px;
+
+    border-radius: 4px;
+
+}
+
+
+.status-good {
+
+    background: #eaf7ef;
+
+    color: var(--green);
+
+}
+
+
+.status-warning {
+
+    background: #fff4df;
+
+    color: var(--orange);
+
+}
+
+
+.status-error {
+
+    background: #feeceb;
+
+    color: var(--red);
+
+}
+
+
+.assessment-summary {
+
+    color: #59636d;
+
+    font-size: 12px;
+
+    line-height: 1.7;
+
+}
+
+
+.ai-findings-container {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10px;
+
+}
+
+
+.ai-card {
+
+    background: white;
+
+    border: 1px solid var(--border);
+
+    border-radius: 8px;
+
+    padding: 17px;
+
+}
+
+
+.ai-card-header {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    margin-bottom: 12px;
+
+}
+
+
+.ai-category {
+
+    font-size: 13px;
+
+    font-weight: 750;
+
+}
+
+
+.ai-severity {
+
+    font-size: 8px;
+
+    font-weight: 800;
+
+    padding: 5px 8px;
+
+    border-radius: 4px;
+
+}
+
+
+.ai-finding {
+
+    color: #4f5963;
+
+    font-size: 11px;
+
+    line-height: 1.6;
+
+    margin-bottom: 12px;
+
+}
+
+
+.ai-comment {
+
+    background: #f7f8fa;
+
+    border-left: 3px solid var(--purple);
+
+    padding: 11px;
+
+    color: #59636d;
+
+    font-size: 11px;
+
+    line-height: 1.6;
+
+    margin-bottom: 12px;
+
+}
+
+
+.recommendation {
+
+    margin-bottom: 12px;
+
+}
+
+
+.recommendation-title {
+
+    color: #6b7280;
+
+    font-size: 9px;
+
+    font-weight: 800;
+
+    text-transform: uppercase;
+
+    letter-spacing: .6px;
+
+    margin-bottom: 5px;
+
+}
+
+
+.recommendation-text {
+
+    color: #3f4851;
+
+    font-size: 11px;
+
+    line-height: 1.6;
+
+}
+
+
+.code-reference {
+
+    background: #20262d;
+
+    color: #cbd2d8;
+
+    padding: 10px;
+
+    border-radius: 5px;
+
+    font-family: Consolas, monospace;
+
+    font-size: 10px;
+
+    overflow-x: auto;
+
+}
+
+
+
+/* =====================================================
+   CHATBOT
+===================================================== */
+
+.chat-button {
+
+    position: fixed;
+
+    left: 25px;
+
+    bottom: 24px;
+
+    border: none;
+
+    background: #1b2229;
+
+    color: white;
+
+    border-radius: 22px;
+
+    padding: 10px 15px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    box-shadow:
+        0 5px 20px rgba(0,0,0,.16);
+
+    z-index: 20;
+
+}
+
+
+.chat-button:hover {
+
+    transform: translateY(-1px);
+
+}
+
+
+.chat-button-icon {
+
+    color: #b8a9ff;
+
+}
+
+
+.chatbot {
+
+    position: fixed;
+
+    left: 25px;
+
+    bottom: 72px;
+
+    width: 340px;
+
+    height: 430px;
+
+    background: white;
+
+    border: 1px solid var(--border);
+
+    border-radius: 10px;
+
+    box-shadow:
+        0 12px 40px rgba(0,0,0,.16);
+
+    display: none;
+
+    flex-direction: column;
+
+    overflow: hidden;
+
+    z-index: 19;
+
+}
+
+
+.chatbot.open {
+
+    display: flex;
+
+    animation:
+        chatOpen .2s ease-out;
+
+}
+
+
+@keyframes chatOpen {
+
+    from {
+
+        opacity: 0;
+
+        transform:
+            translateY(10px)
+            scale(.98);
+
+    }
+
+    to {
+
+        opacity: 1;
+
+        transform:
+            translateY(0)
+            scale(1);
+
+    }
+
+}
+
+
+.chat-header {
+
+    padding: 13px 15px;
+
+    border-bottom: 1px solid var(--border);
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+}
+
+
+.chat-title {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 9px;
+
+}
+
+
+.bot-icon {
+
+    width: 29px;
+
+    height: 29px;
+
+    background: #f0edff;
+
+    color: var(--purple);
+
+    border-radius: 7px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+}
+
+
+.bot-name {
+
+    font-size: 11px;
+
+    font-weight: 750;
+
+}
+
+
+.bot-status {
+
+    color: #9098a0;
+
+    font-size: 8px;
+
+    margin-top: 2px;
+
+}
+
+
+.chat-close {
+
+    border: none;
+
+    background: transparent;
+
+    font-size: 20px;
+
+    color: #8b939b;
+
+    cursor: pointer;
+
+}
+
+
+.chat-messages {
+
+    flex: 1;
+
+    padding: 14px;
+
+    overflow-y: auto;
+
+    background: #fafbfc;
+
+}
+
+
+.bot-message {
+
+    max-width: 85%;
+
+    background: white;
+
+    border: 1px solid var(--border);
+
+    padding: 10px;
+
+    border-radius: 8px;
+
+    font-size: 10px;
+
+    line-height: 1.5;
+
+    color: #59636d;
+
+}
+
+
+.user-message {
+
+    max-width: 85%;
+
+    margin-left: auto;
+
+    background: #1d2833;
+
+    color: white;
+
+    padding: 10px;
+
+    border-radius: 8px;
+
+    font-size: 10px;
+
+    line-height: 1.5;
+
+    margin-top: 9px;
+
+}
+
+
+.chat-input-area {
+
+    padding: 10px;
+
+    border-top: 1px solid var(--border);
+
+    display: flex;
+
+    gap: 7px;
+
+}
+
+
+.chat-input-area textarea {
+
+    flex: 1;
+
+    resize: none;
+
+    border: 1px solid #dce1e6;
+
+    border-radius: 6px;
+
+    padding: 8px;
+
+    font-family: Arial, sans-serif;
+
+    font-size: 10px;
+
+    outline: none;
+
+}
+
+
+.chat-input-area textarea:focus {
+
+    border-color: #8baec9;
+
+}
+
+
+.chat-submit {
+
+    width: 30px;
+
+    height: 30px;
+
+    border: none;
+
+    border-radius: 6px;
+
+    background: #1d2833;
+
+    color: white;
+
+    cursor: pointer;
+
+    align-self: flex-end;
+
+}
+
+
+
+/* =====================================================
+   RESPONSIVE
+===================================================== */
+
+@media (max-width: 900px) {
+
+    .sidebar {
+
+        width: 230px;
+
+    }
+
+    .main-content {
+
+        padding:
+            25px;
+
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    .sidebar {
+
+        display: none;
+
+    }
+
+    .main-content {
+
+        padding: 20px;
+
+    }
+
+    .chatbot {
+
+        left: 15px;
+
+        right: 15px;
+
+        width: auto;
+
+    }
+
+}
