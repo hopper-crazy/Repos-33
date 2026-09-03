@@ -1,45 +1,35 @@
-import xml.etree.ElementTree as ET
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+import operations as op
+import processor as pro
 
 
-def get_atc_errors(xml_text, object_name, object_type):
-    root = ET.fromstring(xml_text)
+app = FastAPI()
 
-    # Map SAP object types to ATC file extensions
-    extension_map = {
-        "CLAS": "CLAS",
-        "PROG": "PROG",
-        "FUGR": "FUGR",
-        "INTF": "INTF",
-        "TABL": "TABL",
-        "DDLS": "DDLS",
-        "DDIC": "DDIC",
-        "DTEL": "DTEL",
-        "DOMA": "DOMA",
-        "VIEW": "VIEW",
-        "FUNC": "FUNC",
-    }
 
-    extension = extension_map.get(object_type, object_type)
+class TransportRequest(BaseModel):
+    transport: str
 
-    errors = []
 
-    for file_node in root.findall(".//file"):
-        file_name = file_node.get("name", "")
+@app.post("/api/review/transport")
+def review_transport(request: TransportRequest):
 
-        # Example:
-        # ZN1_R3876/ZCL_BOM_EXP_HELPER.CLAS
-        expected_end = f"/{object_name}.{extension}"
+    # SAP server
+    base_url = "https://ds5appe001.nccomickcorp.com:44300"
 
-        if file_name.endswith(expected_end):
+    # Create session with cookies and headers
+    session = op.create_adt_session()
 
-            for error in file_node.findall("error"):
-                errors.append({
-                    "object_name": object_name,
-                    "object_type": object_type,
-                    "message": error.get("message", ""),
-                    "source": error.get("source", ""),
-                    "line": error.get("line", ""),
-                    "severity": error.get("severity", "")
-                })
+    # Get TR number from request
+    tr_number = request.transport.strip()
 
-    return errors
+    # Start the process
+    result = pro.process_transport(
+        session,
+        base_url,
+        tr_number
+    )
+
+    # Return JSON array
+    return result
