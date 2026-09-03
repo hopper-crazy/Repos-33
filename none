@@ -1,16 +1,45 @@
-<?xml version="1.0" encoding="UTF-8"?>
+import xml.etree.ElementTree as ET
 
-<atc:runparameters
-    xmlns:atc="http://www.sap.com/adt/atc"
-    xmlns:obj="http://www.sap.com/adt/objectset">
 
-    <osl:objectSet
-        xsi:type="osl:transportSet"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xmlns:osl="http://www.sap.com/api/osl">
+def get_atc_errors(xml_text, object_name, object_type):
+    root = ET.fromstring(xml_text)
 
-        <osl:transport number="DS5K922069"/>
+    # Map SAP object types to ATC file extensions
+    extension_map = {
+        "CLAS": "CLAS",
+        "PROG": "PROG",
+        "FUGR": "FUGR",
+        "INTF": "INTF",
+        "TABL": "TABL",
+        "DDLS": "DDLS",
+        "DDIC": "DDIC",
+        "DTEL": "DTEL",
+        "DOMA": "DOMA",
+        "VIEW": "VIEW",
+        "FUNC": "FUNC",
+    }
 
-    </osl:objectSet>
+    extension = extension_map.get(object_type, object_type)
 
-</atc:runparameters>
+    errors = []
+
+    for file_node in root.findall(".//file"):
+        file_name = file_node.get("name", "")
+
+        # Example:
+        # ZN1_R3876/ZCL_BOM_EXP_HELPER.CLAS
+        expected_end = f"/{object_name}.{extension}"
+
+        if file_name.endswith(expected_end):
+
+            for error in file_node.findall("error"):
+                errors.append({
+                    "object_name": object_name,
+                    "object_type": object_type,
+                    "message": error.get("message", ""),
+                    "source": error.get("source", ""),
+                    "line": error.get("line", ""),
+                    "severity": error.get("severity", "")
+                })
+
+    return errors
