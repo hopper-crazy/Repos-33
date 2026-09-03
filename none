@@ -1,1022 +1,449 @@
-```css
+```javascript
 /* =====================================================
-   GLOBAL
+   ELEMENTS
 ===================================================== */
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+const inputSection =
+    document.getElementById("inputSection");
 
+const processingSection =
+    document.getElementById("processingSection");
 
-body {
+const transportInput =
+    document.getElementById("transport");
 
-    font-family:
-        Inter,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        Arial,
-        sans-serif;
+const reviewButton =
+    document.getElementById("reviewButton");
 
-    background: #f7f8fa;
+const processingTransport =
+    document.getElementById("processingTransport");
 
-    color: #18202a;
+const processingStatus =
+    document.getElementById("processingStatus");
 
-    min-height: 100vh;
-}
+const progressBar =
+    document.getElementById("progressBar");
 
+const processingPercent =
+    document.getElementById("processingPercent");
 
-
-/* =====================================================
-   HEADER
-===================================================== */
-
-.header {
-
-    height: 72px;
-
-    background: rgba(255, 255, 255, 0.96);
-
-    border-bottom: 1px solid #e8eaed;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    padding: 0 46px;
-
-    position: relative;
-
-    z-index: 10;
-}
-
-
-.brand {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 13px;
-}
-
-
-.brand-mark {
-
-    width: 34px;
-
-    height: 34px;
-
-    border-radius: 8px;
-
-    background: #242b33;
-
-    color: white;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-size: 15px;
-
-    font-weight: 700;
-}
-
-
-.brand-text {
-
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 2px;
-}
-
-
-.brand-title {
-
-    font-size: 14px;
-
-    font-weight: 700;
-
-    letter-spacing: 0.3px;
-}
-
-
-.brand-subtitle {
-
-    font-size: 10px;
-
-    color: #89919a;
-
-    letter-spacing: 0.8px;
-
-    text-transform: uppercase;
-}
-
-
-.header-right {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 24px;
-}
-
-
-.environment {
-
-    font-size: 11px;
-
-    color: #69727c;
-
-    letter-spacing: 0.4px;
-}
-
-
-.connection {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 7px;
-
-    padding: 7px 11px;
-
-    border: 1px solid #e3e7eb;
-
-    border-radius: 20px;
-
-    background: #fafbfc;
-
-    font-size: 11px;
-
-    color: #59616a;
-}
-
-
-.connection-dot {
-
-    width: 7px;
-
-    height: 7px;
-
-    background: #2fa36b;
-
-    border-radius: 50%;
-
-    box-shadow:
-        0 0 0 3px rgba(47, 163, 107, 0.08);
-}
+const resultMessage =
+    document.getElementById("resultMessage");
 
 
 
 /* =====================================================
-   MAIN
+   START REVIEW
 ===================================================== */
 
-.main {
+async function startReview() {
 
-    max-width: 1180px;
 
-    margin: 0 auto;
+    const transport =
+        transportInput.value.trim();
 
-    min-height: calc(100vh - 72px);
 
-    padding: 70px 35px 50px;
-}
+    /* =========================================
+       VALIDATION
+    ========================================== */
 
+    if (!transport) {
 
-
-/* =====================================================
-   HERO
-===================================================== */
-
-.hero {
-
-    text-align: center;
-
-    max-width: 760px;
-
-    margin: 0 auto 55px;
-}
-
-
-.eyebrow {
-
-    display: inline-flex;
-
-    align-items: center;
-
-    gap: 8px;
-
-    padding: 7px 12px;
-
-    border-radius: 20px;
-
-    background: #f0f2f4;
-
-    color: #626b74;
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-    letter-spacing: 1.1px;
-
-    text-transform: uppercase;
-
-    margin-bottom: 20px;
-}
-
-
-.eyebrow-dot {
-
-    width: 6px;
-
-    height: 6px;
-
-    background: #7b838c;
-
-    border-radius: 50%;
-}
-
-
-.hero h1 {
-
-    font-size: 46px;
-
-    line-height: 1.1;
-
-    letter-spacing: -1.6px;
-
-    font-weight: 700;
-
-    color: #18202a;
-
-    margin-bottom: 17px;
-}
-
-
-.hero h1 span {
-
-    color: #69727c;
-}
-
-
-.hero-description {
-
-    font-size: 15px;
-
-    line-height: 1.7;
-
-    color: #737c86;
-
-    max-width: 620px;
-
-    margin: auto;
-}
-
-
-
-/* =====================================================
-   REVIEW CARD
-===================================================== */
-
-.review-card {
-
-    max-width: 760px;
-
-    margin: auto;
-
-    background: white;
-
-    border: 1px solid #e4e7eb;
-
-    border-radius: 14px;
-
-    padding: 30px;
-
-    box-shadow:
-        0 10px 35px rgba(22, 30, 38, 0.06);
-
-    transition: all 0.3s ease;
-}
-
-
-.card-header {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: flex-start;
-
-    margin-bottom: 25px;
-}
-
-
-.card-title {
-
-    font-size: 15px;
-
-    font-weight: 700;
-
-    color: #202831;
-
-    margin-bottom: 5px;
-}
-
-
-.card-description {
-
-    font-size: 12px;
-
-    color: #8a929b;
-}
-
-
-.secure-label {
-
-    font-size: 10px;
-
-    color: #7b838c;
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 6px;
-}
-
-
-.lock {
-
-    font-size: 12px;
-
-    color: #2fa36b;
-}
-
-
-
-/* =====================================================
-   INPUT
-===================================================== */
-
-.input-label {
-
-    display: block;
-
-    font-size: 11px;
-
-    font-weight: 700;
-
-    color: #515a64;
-
-    margin-bottom: 8px;
-
-    letter-spacing: 0.4px;
-
-    text-transform: uppercase;
-}
-
-
-.input-wrapper {
-
-    display: flex;
-
-    gap: 10px;
-}
-
-
-.transport-input {
-
-    flex: 1;
-
-    height: 48px;
-
-    border: 1px solid #d8dde2;
-
-    border-radius: 7px;
-
-    padding: 0 15px;
-
-    font-size: 13px;
-
-    font-family: Consolas, monospace;
-
-    color: #242c35;
-
-    background: #fcfcfd;
-
-    transition: all 0.2s ease;
-}
-
-
-.transport-input::placeholder {
-
-    color: #aab1b8;
-}
-
-
-.transport-input:focus {
-
-    outline: none;
-
-    border-color: #7f8993;
-
-    background: white;
-
-    box-shadow:
-        0 0 0 3px rgba(100, 110, 120, 0.08);
-}
-
-
-
-/* =====================================================
-   BUTTON
-===================================================== */
-
-.review-button {
-
-    height: 48px;
-
-    padding: 0 24px;
-
-    border: none;
-
-    border-radius: 7px;
-
-    background: #252c34;
-
-    color: white;
-
-    font-size: 12px;
-
-    font-weight: 600;
-
-    letter-spacing: 0.2px;
-
-    cursor: pointer;
-
-    transition: all 0.2s ease;
-
-    white-space: nowrap;
-}
-
-
-.review-button:hover {
-
-    background: #111820;
-
-    transform: translateY(-1px);
-
-    box-shadow:
-        0 5px 12px rgba(20, 27, 34, 0.15);
-}
-
-
-.review-button:active {
-
-    transform: translateY(0);
-}
-
-
-
-/* =====================================================
-   RESULT MESSAGE
-===================================================== */
-
-.result-message {
-
-    display: none;
-
-    margin-top: 15px;
-
-    padding: 11px 13px;
-
-    border-radius: 6px;
-
-    background: #f5f7f8;
-
-    border: 1px solid #e5e8eb;
-
-    color: #68717b;
-
-    font-size: 11px;
-
-    line-height: 1.5;
-}
-
-
-
-/* =====================================================
-   DIVIDER
-===================================================== */
-
-.divider {
-
-    height: 1px;
-
-    background: #edf0f2;
-
-    margin: 30px 0;
-}
-
-
-
-/* =====================================================
-   FEATURES
-===================================================== */
-
-.features {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(3, 1fr);
-
-    gap: 18px;
-}
-
-
-.feature {
-
-    padding: 20px;
-
-    border: 1px solid #e8ebee;
-
-    border-radius: 9px;
-
-    background: #fafbfc;
-
-    transition: all 0.2s ease;
-}
-
-
-.feature:hover {
-
-    background: white;
-
-    border-color: #dce1e5;
-
-    transform: translateY(-2px);
-
-    box-shadow:
-        0 5px 18px rgba(20, 28, 36, 0.05);
-}
-
-
-.feature-icon {
-
-    width: 31px;
-
-    height: 31px;
-
-    border-radius: 7px;
-
-    background: #eceff2;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    margin-bottom: 13px;
-
-    font-size: 14px;
-
-    color: #4e5862;
-}
-
-
-.feature-title {
-
-    font-size: 12px;
-
-    font-weight: 700;
-
-    color: #333c45;
-
-    margin-bottom: 6px;
-}
-
-
-.feature-description {
-
-    font-size: 11px;
-
-    line-height: 1.5;
-
-    color: #858d96;
-}
-
-
-
-/* =====================================================
-   PROCESSING SECTION
-===================================================== */
-
-.processing-section {
-
-    display: none;
-
-    text-align: center;
-
-    padding: 15px 10px 5px;
-}
-
-
-
-/* =====================================================
-   ANIMATED ANALYSIS ICON
-===================================================== */
-
-.processing-icon {
-
-    width: 105px;
-
-    height: 105px;
-
-    margin: 0 auto 25px;
-
-    position: relative;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-}
-
-
-.core {
-
-    width: 40px;
-
-    height: 40px;
-
-    border-radius: 50%;
-
-    background: #252c34;
-
-    color: white;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-size: 17px;
-
-    position: relative;
-
-    z-index: 5;
-
-    box-shadow:
-        0 0 0 6px rgba(37, 44, 52, 0.05),
-        0 0 25px rgba(37, 44, 52, 0.13);
-
-    animation:
-        corePulse 1.7s ease-in-out infinite;
-}
-
-
-.orbit {
-
-    position: absolute;
-
-    border: 1px solid #d1d6db;
-
-    border-radius: 50%;
-}
-
-
-.orbit-one {
-
-    width: 65px;
-
-    height: 65px;
-
-    animation:
-        rotateClockwise 2.8s linear infinite;
-}
-
-
-.orbit-two {
-
-    width: 84px;
-
-    height: 84px;
-
-    border-style: dashed;
-
-    animation:
-        rotateCounter 4.5s linear infinite;
-}
-
-
-.orbit-three {
-
-    width: 104px;
-
-    height: 104px;
-
-    border-color: #e7eaed;
-
-    animation:
-        rotateClockwise 7s linear infinite;
-}
-
-
-@keyframes rotateClockwise {
-
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-
-@keyframes rotateCounter {
-
-    from {
-        transform: rotate(360deg);
-    }
-
-    to {
-        transform: rotate(0deg);
-    }
-}
-
-
-@keyframes corePulse {
-
-    0%, 100% {
-
-        transform: scale(1);
-
-        box-shadow:
-            0 0 0 6px rgba(37, 44, 52, 0.05),
-            0 0 25px rgba(37, 44, 52, 0.13);
-    }
-
-    50% {
-
-        transform: scale(1.08);
-
-        box-shadow:
-            0 0 0 10px rgba(37, 44, 52, 0.04),
-            0 0 35px rgba(37, 44, 52, 0.18);
-    }
-}
-
-
-
-/* =====================================================
-   PROCESSING TEXT
-===================================================== */
-
-.processing-title {
-
-    font-size: 17px;
-
-    font-weight: 700;
-
-    color: #252c34;
-
-    margin-bottom: 6px;
-}
-
-
-.processing-transport {
-
-    font-family: Consolas, monospace;
-
-    font-size: 11px;
-
-    color: #8a929b;
-
-    margin-bottom: 25px;
-}
-
-
-.processing-status {
-
-    font-size: 12px;
-
-    color: #68717b;
-
-    min-height: 18px;
-
-    transition: opacity 0.3s ease;
-}
-
-
-
-/* =====================================================
-   PROGRESS BAR
-===================================================== */
-
-.progress-container {
-
-    height: 5px;
-
-    background: #edf0f2;
-
-    border-radius: 10px;
-
-    margin: 20px auto 10px;
-
-    max-width: 470px;
-
-    overflow: hidden;
-}
-
-
-.progress-bar {
-
-    width: 0%;
-
-    height: 100%;
-
-    background: #252c34;
-
-    border-radius: 10px;
-
-    transition:
-        width 0.6s ease;
-}
-
-
-
-/* =====================================================
-   PROCESSING FOOTER
-===================================================== */
-
-.processing-footer {
-
-    max-width: 470px;
-
-    margin: auto;
-
-    display: flex;
-
-    justify-content: space-between;
-
-    font-size: 9px;
-
-    color: #a0a7ae;
-}
-
-
-#processingPercent {
-
-    font-weight: 700;
-
-    color: #69727c;
-}
-
-
-
-/* =====================================================
-   SCANNING LINE
-===================================================== */
-
-.processing-section::after {
-
-    content: "";
-
-    display: block;
-
-    height: 1px;
-
-    margin-top: 25px;
-
-    background:
-        linear-gradient(
-            90deg,
-            transparent,
-            #dfe3e7,
-            transparent
+        showMessage(
+            "Please enter a Transport Request."
         );
 
-    animation:
-        scanningLine 2s ease-in-out infinite;
-}
+        transportInput.focus();
 
-
-@keyframes scanningLine {
-
-    0% {
-
-        opacity: 0.2;
-
-        transform: scaleX(0.3);
+        return;
     }
 
-    50% {
 
-        opacity: 1;
 
-        transform: scaleX(1);
+    /* =========================================
+       SHOW PROCESSING SCREEN
+    ========================================== */
+
+    inputSection.style.display = "none";
+
+    processingSection.style.display = "block";
+
+    processingTransport.innerText =
+        transport;
+
+
+
+    /* =========================================
+       RESET PROCESSING UI
+    ========================================== */
+
+    processingStatus.innerText =
+        "Connecting to SAP...";
+
+    processingStatus.style.color =
+        "#68717b";
+
+    progressBar.style.width =
+        "0%";
+
+    processingPercent.innerText =
+        "0%";
+
+
+
+    /* =========================================
+       PROCESSING ANIMATION
+    ========================================== */
+
+    const steps = [
+
+        {
+            text: "Connecting to SAP...",
+            progress: 15
+        },
+
+        {
+            text: "Retrieving transport objects...",
+            progress: 30
+        },
+
+        {
+            text: "Fetching ABAP source code...",
+            progress: 50
+        },
+
+        {
+            text: "Running ATC checks...",
+            progress: 70
+        },
+
+        {
+            text: "Analyzing code quality...",
+            progress: 85
+        },
+
+        {
+            text: "Preparing review results...",
+            progress: 95
+        }
+
+    ];
+
+
+    let currentStep = 0;
+
+
+    /*
+     * Change the status every 1.5 seconds.
+     *
+     * This continues while fetch()
+     * is waiting for the backend.
+     */
+
+    const statusInterval =
+        setInterval(() => {
+
+
+            if (
+                currentStep >=
+                steps.length
+            ) {
+
+                return;
+
+            }
+
+
+            const step =
+                steps[currentStep];
+
+
+            /*
+             * Fade current status out
+             */
+
+            processingStatus.style.opacity =
+                "0";
+
+
+            setTimeout(() => {
+
+
+                processingStatus.innerText =
+                    step.text;
+
+
+                progressBar.style.width =
+                    step.progress + "%";
+
+
+                processingPercent.innerText =
+                    step.progress + "%";
+
+
+                processingStatus.style.opacity =
+                    "1";
+
+
+            }, 150);
+
+
+            currentStep++;
+
+
+        }, 1500);
+
+
+
+    /* =========================================
+       API CALL
+    ========================================== */
+
+    try {
+
+
+        const response =
+            await fetch(
+                "http://localhost:8000/process_transport",
+                {
+
+                    method: "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body: JSON.stringify({
+
+                        transport:
+                            transport
+
+                    })
+
+                }
+            );
+
+
+
+        /* =====================================
+           HTTP ERROR
+        ====================================== */
+
+        if (!response.ok) {
+
+            throw new Error(
+                `HTTP ${response.status}`
+            );
+
+        }
+
+
+
+        /* =====================================
+           GET JSON RESPONSE
+        ====================================== */
+
+        const data =
+            await response.json();
+
+
+
+        console.log(
+            "API Response:",
+            data
+        );
+
+
+
+        /* =====================================
+           STOP PROCESSING ANIMATION
+        ====================================== */
+
+        clearInterval(
+            statusInterval
+        );
+
+
+        progressBar.style.width =
+            "100%";
+
+
+        processingPercent.innerText =
+            "100%";
+
+
+        processingStatus.innerText =
+            "Analysis complete";
+
+
+        processingStatus.style.color =
+            "#2f8f62";
+
+
+
+        /* =====================================
+           NEXT STEP
+        ====================================== */
+
+        setTimeout(() => {
+
+
+            /*
+             * Your API response is available here.
+             *
+             * Example response:
+             *
+             * [
+             *     {
+             *         object_name:
+             *             "ZCL_ORDER_PROCESSOR",
+             *
+             *         object_type:
+             *             "CLAS",
+             *
+             *         object_info:
+             *             "ABAP Class",
+             *
+             *         object_desc:
+             *             "Order processor",
+             *
+             *         atc_checks: [],
+             *
+             *         source_code:
+             *             "CLASS..."
+             *     }
+             * ]
+             */
+
+
+            console.log(
+                "Transport Review Data:",
+                data
+            );
+
+
+            /*
+             * NEXT:
+             *
+             * showReviewPage(data);
+             *
+             * We can create the complete
+             * review page from this JSON.
+             */
+
+
+        }, 600);
+
+
     }
 
-    100% {
 
-        opacity: 0.2;
+    /* =========================================
+       API ERROR
+    ========================================== */
 
-        transform: scaleX(0.3);
+    catch (error) {
+
+
+        clearInterval(
+            statusInterval
+        );
+
+
+        console.error(
+            "API Error:",
+            error
+        );
+
+
+        processingStatus.innerText =
+            "Unable to complete the review";
+
+
+        processingStatus.style.color =
+            "#b45309";
+
+
+        progressBar.style.width =
+            "0%";
+
+
+        processingPercent.innerText =
+            "Error";
+
+
+
+        /*
+         * Return to input after 2.5 seconds
+         */
+
+        setTimeout(() => {
+
+
+            processingSection.style.display =
+                "none";
+
+
+            inputSection.style.display =
+                "block";
+
+
+            processingStatus.style.color =
+                "#68717b";
+
+
+        }, 2500);
+
     }
+
 }
 
 
 
 /* =====================================================
-   FOOTER
+   MESSAGE
 ===================================================== */
 
-.footer {
+function showMessage(message) {
 
-    text-align: center;
+    resultMessage.style.display =
+        "block";
 
-    margin-top: 40px;
+    resultMessage.innerText =
+        message;
 
-    color: #a0a7ae;
-
-    font-size: 10px;
-
-    letter-spacing: 0.2px;
 }
 
 
 
 /* =====================================================
-   RESPONSIVE
+   BUTTON EVENT
 ===================================================== */
 
-@media (max-width: 700px) {
+reviewButton.addEventListener(
+    "click",
+    startReview
+);
 
-    .header {
 
-        padding: 0 20px;
+
+/* =====================================================
+   ENTER KEY
+===================================================== */
+
+transportInput.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (event.key === "Enter") {
+
+            startReview();
+
+        }
+
     }
-
-
-    .environment {
-
-        display: none;
-    }
-
-
-    .main {
-
-        padding:
-            50px 20px 40px;
-    }
-
-
-    .hero h1 {
-
-        font-size: 34px;
-    }
-
-
-    .review-card {
-
-        padding: 22px;
-    }
-
-
-    .input-wrapper {
-
-        flex-direction: column;
-    }
-
-
-    .review-button {
-
-        width: 100%;
-    }
-
-
-    .features {
-
-        grid-template-columns: 1fr;
-    }
-
-}
+);
 ```
