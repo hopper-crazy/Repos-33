@@ -1,13 +1,575 @@
-        sessionStorage.setItem(
-            "reviewData",
-            JSON.stringify(data)
-        );
+<!DOCTYPE html>
+<html lang="en">
 
-        // Also store TR number
-        sessionStorage.setItem(
-            "transportRequest",
-            trNumber
-        );
+<head>
 
-        // Go to second page
-        window.location.href = "review.html";
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>SAP Code Review</title>
+
+    <link
+        rel="stylesheet"
+        href="review.css"
+    >
+
+</head>
+
+
+<body>
+
+
+<!-- =====================================================
+     HEADER
+====================================================== -->
+
+<header class="top-header">
+
+    <div class="brand-section">
+
+        <div class="brand-mark">
+            MC
+        </div>
+
+        <div>
+
+            <div class="logo">
+                SAP CODE REVIEW
+            </div>
+
+            <div class="logo-subtitle">
+                Intelligent ABAP Quality Analysis
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="connection">
+
+        <span
+            id="connectionDot"
+            class="status-dot disconnected"
+        ></span>
+
+        <span id="connectionText">
+            SAP Disconnected
+        </span>
+
+    </div>
+
+</header>
+
+
+
+<!-- =====================================================
+     MAIN APPLICATION
+====================================================== -->
+
+<div class="app-layout">
+
+
+    <!-- =================================================
+         SIDEBAR
+    ================================================== -->
+
+    <aside class="sidebar">
+
+
+        <!-- Transport -->
+
+        <div class="sidebar-section">
+
+            <div class="sidebar-label">
+                TRANSPORT REQUEST
+            </div>
+
+            <div
+                id="transportNumber"
+                class="transport-number"
+            >
+                -
+            </div>
+
+        </div>
+
+
+
+        <!-- Objects -->
+
+        <div class="sidebar-section objects-section">
+
+            <div class="objects-header">
+
+                <span class="sidebar-label">
+                    OBJECTS
+                </span>
+
+                <span
+                    id="objectCount"
+                    class="object-count"
+                >
+                    0
+                </span>
+
+            </div>
+
+
+            <div
+                id="objectList"
+                class="object-list"
+            >
+                <!-- Objects inserted by JS -->
+
+            </div>
+
+        </div>
+
+
+        <!-- New Review -->
+
+        <button
+            class="new-review-button"
+            onclick="newReview()"
+        >
+
+            <span>
+                +
+            </span>
+
+            New Review
+
+        </button>
+
+
+    </aside>
+
+
+
+    <!-- =================================================
+         MAIN CONTENT
+    ================================================== -->
+
+    <main class="main-content">
+
+
+        <!-- PAGE HEADER -->
+
+        <div class="page-header">
+
+
+            <div class="header-left">
+
+                <div class="breadcrumb">
+
+                    TRANSPORT
+                    <span>/</span>
+
+                    <span id="breadcrumbObject">
+                        -
+                    </span>
+
+                </div>
+
+
+                <h1 id="objectName">
+                    -
+                </h1>
+
+
+                <p id="objectDescription">
+                    Select an object from the transport
+                </p>
+
+            </div>
+
+
+            <div
+                id="objectTypeBadge"
+                class="object-badge"
+            >
+                -
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             TABS
+        ================================================== -->
+
+        <div class="tabs">
+
+            <button
+                class="tab active"
+                data-tab="source"
+                onclick="switchTab('source')"
+            >
+
+                <span class="tab-icon">
+                    &lt;/&gt;
+                </span>
+
+                Source Code
+
+            </button>
+
+
+            <button
+                class="tab"
+                data-tab="atc"
+                onclick="switchTab('atc')"
+            >
+
+                <span class="tab-icon">
+                    !
+                </span>
+
+                ATC Results
+
+                <span
+                    id="atcCount"
+                    class="tab-count"
+                >
+                    0
+                </span>
+
+            </button>
+
+
+            <button
+                class="tab"
+                data-tab="ai"
+                onclick="switchTab('ai')"
+            >
+
+                <span class="tab-icon">
+                    ✦
+                </span>
+
+                AI Review
+
+                <span
+                    id="aiCount"
+                    class="tab-count ai-count"
+                >
+                    0
+                </span>
+
+            </button>
+
+        </div>
+
+
+
+        <!-- =================================================
+             SOURCE TAB
+        ================================================== -->
+
+        <section
+            id="sourceTab"
+            class="tab-content active"
+        >
+
+
+            <div class="section-heading">
+
+                <div>
+
+                    <h2>
+                        ABAP SOURCE CODE
+                    </h2>
+
+                    <p>
+                        Original source retrieved from SAP
+                    </p>
+
+                </div>
+
+
+                <div
+                    id="lineCount"
+                    class="line-count"
+                >
+                    0 lines
+                </div>
+
+            </div>
+
+
+
+            <div class="code-window">
+
+
+                <div class="code-toolbar">
+
+                    <div class="file-info">
+
+                        <span class="file-icon">
+                            ABAP
+                        </span>
+
+                        <span id="codeFileName">
+                            -
+                        </span>
+
+                    </div>
+
+
+                    <div class="code-language">
+                        ABAP
+                    </div>
+
+                </div>
+
+
+                <div class="code-body">
+
+                    <div
+                        id="lineNumbers"
+                        class="line-numbers"
+                    >
+                    </div>
+
+
+                    <pre
+                        id="sourceCode"
+                        class="source-code"
+                    ></pre>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             ATC TAB
+        ================================================== -->
+
+        <section
+            id="atcTab"
+            class="tab-content"
+        >
+
+
+            <div class="section-heading">
+
+                <div>
+
+                    <h2>
+                        ATC FINDINGS
+                    </h2>
+
+                    <p>
+                        Automated Test Cockpit analysis
+                    </p>
+
+                </div>
+
+
+                <div
+                    id="atcSummary"
+                    class="result-summary"
+                >
+                    0 findings
+                </div>
+
+            </div>
+
+
+            <div
+                id="atcContainer"
+                class="findings-container"
+            >
+                <!-- ATC findings inserted by JS -->
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             AI TAB
+        ================================================== -->
+
+        <section
+            id="aiTab"
+            class="tab-content"
+        >
+
+
+            <div class="section-heading">
+
+                <div>
+
+                    <h2>
+                        AI CODE REVIEW
+                    </h2>
+
+                    <p>
+                        Intelligent analysis of your ABAP implementation
+                    </p>
+
+                </div>
+
+
+                <div class="ai-label">
+                    AI ANALYSIS
+                </div>
+
+            </div>
+
+
+
+            <!-- Overall Assessment -->
+
+            <div
+                id="overallAssessment"
+                class="assessment-card"
+            >
+                <!-- Generated by JS -->
+            </div>
+
+
+
+            <!-- AI Findings -->
+
+            <div
+                id="aiContainer"
+                class="ai-findings-container"
+            >
+                <!-- AI findings inserted by JS -->
+            </div>
+
+        </section>
+
+
+    </main>
+
+</div>
+
+
+
+<!-- =====================================================
+     CHATBOT
+====================================================== -->
+
+<div
+    id="chatbot"
+    class="chatbot"
+>
+
+
+    <!-- Chat Header -->
+
+    <div class="chat-header">
+
+        <div class="chat-title">
+
+            <div class="bot-icon">
+                ✦
+            </div>
+
+            <div>
+
+                <div class="bot-name">
+                    ABAP Assistant
+                </div>
+
+                <div class="bot-status">
+                    Ask about this object
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <button
+            class="chat-close"
+            onclick="toggleChat()"
+        >
+            ×
+        </button>
+
+    </div>
+
+
+
+    <!-- Messages -->
+
+    <div
+        id="chatMessages"
+        class="chat-messages"
+    >
+
+        <div class="bot-message">
+
+            Select an object to start discussing
+            its code and findings.
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Input -->
+
+    <div class="chat-input-area">
+
+        <textarea
+            id="chatInput"
+            placeholder="Ask about this object..."
+            rows="1"
+        ></textarea>
+
+
+        <button
+            class="chat-submit"
+            onclick="submitChat()"
+        >
+            ↑
+        </button>
+
+    </div>
+
+</div>
+
+
+
+<!-- Floating Chat Button -->
+
+<button
+    id="chatButton"
+    class="chat-button"
+    onclick="toggleChat()"
+>
+
+    <span class="chat-button-icon">
+        ✦
+    </span>
+
+    <span>
+        Ask AI
+    </span>
+
+</button>
+
+
+
+<script src="review.js"></script>
+
+</body>
+
+</html>
