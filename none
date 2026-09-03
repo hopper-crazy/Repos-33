@@ -1,35 +1,429 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+```html
+<!DOCTYPE html>
+<html lang="en">
 
-import operations as op
-import processor as pro
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>ABAP Intelligence | Code Review</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+</head>
 
 
-app = FastAPI()
+<body>
 
 
-class TransportRequest(BaseModel):
-    transport: str
+<!-- =====================================================
+     HEADER
+====================================================== -->
+
+<header class="header">
 
 
-@app.post("/api/review/transport")
-def review_transport(request: TransportRequest):
+    <div class="brand">
 
-    # SAP server
-    base_url = "https://ds5appe001.nccomickcorp.com:44300"
 
-    # Create session with cookies and headers
-    session = op.create_adt_session()
+        <div class="brand-mark">
+            A
+        </div>
 
-    # Get TR number from request
-    tr_number = request.transport.strip()
 
-    # Start the process
-    result = pro.process_transport(
-        session,
-        base_url,
-        tr_number
-    )
+        <div class="brand-text">
 
-    # Return JSON array
-    return result
+            <div class="brand-title">
+                ABAP Intelligence
+            </div>
+
+            <div class="brand-subtitle">
+                Code Quality Platform
+            </div>
+
+        </div>
+
+
+    </div>
+
+
+    <div class="header-right">
+
+
+        <div class="environment">
+            SAP S/4HANA
+        </div>
+
+
+        <div class="connection">
+
+            <span class="connection-dot"></span>
+
+            Connected
+
+        </div>
+
+
+    </div>
+
+
+</header>
+
+
+
+<!-- =====================================================
+     MAIN
+====================================================== -->
+
+<main class="main">
+
+
+    <!-- =================================================
+         HERO
+    ================================================== -->
+
+    <section class="hero">
+
+
+        <div class="eyebrow">
+
+            <span class="eyebrow-dot"></span>
+
+            Intelligent Code Review
+
+        </div>
+
+
+        <h1>
+
+            Better ABAP.
+            <span>Built into every review.</span>
+
+        </h1>
+
+
+        <p class="hero-description">
+
+            Analyze your SAP Transport Requests with automated
+            ATC checks and intelligent code insights — all in
+            one streamlined review experience.
+
+        </p>
+
+
+    </section>
+
+
+
+    <!-- =================================================
+         REVIEW CARD
+    ================================================== -->
+
+    <section class="review-card">
+
+
+        <!-- =============================================
+             INPUT SECTION
+        ============================================== -->
+
+        <div id="inputSection">
+
+
+            <div class="card-header">
+
+
+                <div>
+
+                    <div class="card-title">
+                        Start a code review
+                    </div>
+
+                    <div class="card-description">
+                        Enter a Transport Request to begin analysis.
+                    </div>
+
+                </div>
+
+
+                <div class="secure-label">
+
+                    <span class="lock">
+                        ◉
+                    </span>
+
+                    SAP Connected
+
+                </div>
+
+
+            </div>
+
+
+
+            <label
+                class="input-label"
+                for="transport"
+            >
+                Transport Request
+            </label>
+
+
+
+            <div class="input-wrapper">
+
+
+                <input
+                    id="transport"
+                    class="transport-input"
+                    type="text"
+                    placeholder="DEVK900123"
+                    autocomplete="off"
+                >
+
+
+                <button
+                    id="reviewButton"
+                    class="review-button"
+                >
+
+                    Start Review
+
+                    <span>
+                        →
+                    </span>
+
+                </button>
+
+
+            </div>
+
+
+            <div
+                id="resultMessage"
+                class="result-message"
+            ></div>
+
+
+
+            <!-- =========================================
+                 DIVIDER
+            ========================================== -->
+
+            <div class="divider"></div>
+
+
+
+            <!-- =========================================
+                 FEATURES
+            ========================================== -->
+
+            <div class="features">
+
+
+                <div class="feature">
+
+
+                    <div class="feature-icon">
+                        ◇
+                    </div>
+
+
+                    <div class="feature-title">
+                        ATC Analysis
+                    </div>
+
+
+                    <div class="feature-description">
+
+                        Identify code quality, performance,
+                        security and Clean Core findings.
+
+                    </div>
+
+
+                </div>
+
+
+
+                <div class="feature">
+
+
+                    <div class="feature-icon">
+                        &lt;/&gt;
+                    </div>
+
+
+                    <div class="feature-title">
+                        Source Review
+                    </div>
+
+
+                    <div class="feature-description">
+
+                        Inspect the source code of every
+                        object included in the transport.
+
+                    </div>
+
+
+                </div>
+
+
+
+                <div class="feature">
+
+
+                    <div class="feature-icon">
+                        ✦
+                    </div>
+
+
+                    <div class="feature-title">
+                        AI Insights
+                    </div>
+
+
+                    <div class="feature-description">
+
+                        Generate intelligent recommendations
+                        to improve code quality and maintainability.
+
+                    </div>
+
+
+                </div>
+
+
+            </div>
+
+
+        </div>
+
+
+
+        <!-- =============================================
+             PROCESSING SECTION
+        ============================================== -->
+
+        <div
+            id="processingSection"
+            class="processing-section"
+        >
+
+
+            <!-- Animated Analysis Icon -->
+
+            <div class="processing-icon">
+
+
+                <div class="orbit orbit-one"></div>
+
+                <div class="orbit orbit-two"></div>
+
+                <div class="orbit orbit-three"></div>
+
+
+                <div class="core">
+
+                    <span>
+                        ✦
+                    </span>
+
+                </div>
+
+
+            </div>
+
+
+
+            <div class="processing-title">
+
+                Analyzing Transport Request
+
+            </div>
+
+
+            <div
+                id="processingTransport"
+                class="processing-transport"
+            >
+                DEVK900123
+            </div>
+
+
+            <!-- Current Status -->
+
+            <div
+                id="processingStatus"
+                class="processing-status"
+            >
+                Connecting to SAP...
+            </div>
+
+
+
+            <!-- Progress -->
+
+            <div class="progress-container">
+
+                <div
+                    id="progressBar"
+                    class="progress-bar"
+                ></div>
+
+            </div>
+
+
+
+            <div class="processing-footer">
+
+
+                <span id="processingPercent">
+                    0%
+                </span>
+
+
+                <span>
+                    Please don't close this window
+                </span>
+
+
+            </div>
+
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- =================================================
+         FOOTER
+    ================================================== -->
+
+    <div class="footer">
+
+        ABAP Intelligence · Internal Enterprise Platform
+
+    </div>
+
+
+</main>
+
+
+
+<script src="script.js"></script>
+
+</body>
+
+</html>
+```
