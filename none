@@ -1,429 +1,1022 @@
-```html
-<!DOCTYPE html>
-<html lang="en">
+```css
+/* =====================================================
+   GLOBAL
+===================================================== */
 
-<head>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-    <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+body {
 
-    <title>ABAP Intelligence | Code Review</title>
+    font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Arial,
+        sans-serif;
 
-    <link
-        rel="stylesheet"
-        href="style.css"
-    >
+    background: #f7f8fa;
 
-</head>
+    color: #18202a;
 
+    min-height: 100vh;
+}
 
-<body>
 
 
-<!-- =====================================================
-     HEADER
-====================================================== -->
+/* =====================================================
+   HEADER
+===================================================== */
 
-<header class="header">
+.header {
 
+    height: 72px;
 
-    <div class="brand">
+    background: rgba(255, 255, 255, 0.96);
 
+    border-bottom: 1px solid #e8eaed;
 
-        <div class="brand-mark">
-            A
-        </div>
+    display: flex;
 
+    align-items: center;
 
-        <div class="brand-text">
+    justify-content: space-between;
 
-            <div class="brand-title">
-                ABAP Intelligence
-            </div>
+    padding: 0 46px;
 
-            <div class="brand-subtitle">
-                Code Quality Platform
-            </div>
+    position: relative;
 
-        </div>
+    z-index: 10;
+}
 
 
-    </div>
+.brand {
 
+    display: flex;
 
-    <div class="header-right">
+    align-items: center;
 
+    gap: 13px;
+}
 
-        <div class="environment">
-            SAP S/4HANA
-        </div>
 
+.brand-mark {
 
-        <div class="connection">
+    width: 34px;
 
-            <span class="connection-dot"></span>
+    height: 34px;
 
-            Connected
+    border-radius: 8px;
 
-        </div>
+    background: #242b33;
 
+    color: white;
 
-    </div>
+    display: flex;
 
+    align-items: center;
 
-</header>
+    justify-content: center;
 
+    font-size: 15px;
 
+    font-weight: 700;
+}
 
-<!-- =====================================================
-     MAIN
-====================================================== -->
 
-<main class="main">
+.brand-text {
 
+    display: flex;
 
-    <!-- =================================================
-         HERO
-    ================================================== -->
+    flex-direction: column;
 
-    <section class="hero">
+    gap: 2px;
+}
 
 
-        <div class="eyebrow">
+.brand-title {
 
-            <span class="eyebrow-dot"></span>
+    font-size: 14px;
 
-            Intelligent Code Review
+    font-weight: 700;
 
-        </div>
+    letter-spacing: 0.3px;
+}
 
 
-        <h1>
+.brand-subtitle {
 
-            Better ABAP.
-            <span>Built into every review.</span>
+    font-size: 10px;
 
-        </h1>
+    color: #89919a;
 
+    letter-spacing: 0.8px;
 
-        <p class="hero-description">
+    text-transform: uppercase;
+}
 
-            Analyze your SAP Transport Requests with automated
-            ATC checks and intelligent code insights — all in
-            one streamlined review experience.
 
-        </p>
+.header-right {
 
+    display: flex;
 
-    </section>
+    align-items: center;
 
+    gap: 24px;
+}
 
 
-    <!-- =================================================
-         REVIEW CARD
-    ================================================== -->
+.environment {
 
-    <section class="review-card">
+    font-size: 11px;
 
+    color: #69727c;
 
-        <!-- =============================================
-             INPUT SECTION
-        ============================================== -->
+    letter-spacing: 0.4px;
+}
 
-        <div id="inputSection">
 
+.connection {
 
-            <div class="card-header">
+    display: flex;
 
+    align-items: center;
 
-                <div>
+    gap: 7px;
 
-                    <div class="card-title">
-                        Start a code review
-                    </div>
+    padding: 7px 11px;
 
-                    <div class="card-description">
-                        Enter a Transport Request to begin analysis.
-                    </div>
+    border: 1px solid #e3e7eb;
 
-                </div>
+    border-radius: 20px;
 
+    background: #fafbfc;
 
-                <div class="secure-label">
+    font-size: 11px;
 
-                    <span class="lock">
-                        ◉
-                    </span>
+    color: #59616a;
+}
 
-                    SAP Connected
 
-                </div>
+.connection-dot {
 
+    width: 7px;
 
-            </div>
+    height: 7px;
 
+    background: #2fa36b;
 
+    border-radius: 50%;
 
-            <label
-                class="input-label"
-                for="transport"
-            >
-                Transport Request
-            </label>
+    box-shadow:
+        0 0 0 3px rgba(47, 163, 107, 0.08);
+}
 
 
 
-            <div class="input-wrapper">
+/* =====================================================
+   MAIN
+===================================================== */
 
+.main {
 
-                <input
-                    id="transport"
-                    class="transport-input"
-                    type="text"
-                    placeholder="DEVK900123"
-                    autocomplete="off"
-                >
+    max-width: 1180px;
 
+    margin: 0 auto;
 
-                <button
-                    id="reviewButton"
-                    class="review-button"
-                >
+    min-height: calc(100vh - 72px);
 
-                    Start Review
+    padding: 70px 35px 50px;
+}
 
-                    <span>
-                        →
-                    </span>
 
-                </button>
 
+/* =====================================================
+   HERO
+===================================================== */
 
-            </div>
+.hero {
 
+    text-align: center;
 
-            <div
-                id="resultMessage"
-                class="result-message"
-            ></div>
+    max-width: 760px;
 
+    margin: 0 auto 55px;
+}
 
 
-            <!-- =========================================
-                 DIVIDER
-            ========================================== -->
+.eyebrow {
 
-            <div class="divider"></div>
+    display: inline-flex;
 
+    align-items: center;
 
+    gap: 8px;
 
-            <!-- =========================================
-                 FEATURES
-            ========================================== -->
+    padding: 7px 12px;
 
-            <div class="features">
+    border-radius: 20px;
 
+    background: #f0f2f4;
 
-                <div class="feature">
+    color: #626b74;
 
+    font-size: 10px;
 
-                    <div class="feature-icon">
-                        ◇
-                    </div>
+    font-weight: 700;
 
+    letter-spacing: 1.1px;
 
-                    <div class="feature-title">
-                        ATC Analysis
-                    </div>
+    text-transform: uppercase;
 
+    margin-bottom: 20px;
+}
 
-                    <div class="feature-description">
 
-                        Identify code quality, performance,
-                        security and Clean Core findings.
+.eyebrow-dot {
 
-                    </div>
+    width: 6px;
 
+    height: 6px;
 
-                </div>
+    background: #7b838c;
 
+    border-radius: 50%;
+}
 
 
-                <div class="feature">
+.hero h1 {
 
+    font-size: 46px;
 
-                    <div class="feature-icon">
-                        &lt;/&gt;
-                    </div>
+    line-height: 1.1;
 
+    letter-spacing: -1.6px;
 
-                    <div class="feature-title">
-                        Source Review
-                    </div>
+    font-weight: 700;
 
+    color: #18202a;
 
-                    <div class="feature-description">
+    margin-bottom: 17px;
+}
 
-                        Inspect the source code of every
-                        object included in the transport.
 
-                    </div>
+.hero h1 span {
 
+    color: #69727c;
+}
 
-                </div>
 
+.hero-description {
 
+    font-size: 15px;
 
-                <div class="feature">
+    line-height: 1.7;
 
+    color: #737c86;
 
-                    <div class="feature-icon">
-                        ✦
-                    </div>
+    max-width: 620px;
 
+    margin: auto;
+}
 
-                    <div class="feature-title">
-                        AI Insights
-                    </div>
 
 
-                    <div class="feature-description">
+/* =====================================================
+   REVIEW CARD
+===================================================== */
 
-                        Generate intelligent recommendations
-                        to improve code quality and maintainability.
+.review-card {
 
-                    </div>
+    max-width: 760px;
 
+    margin: auto;
 
-                </div>
+    background: white;
 
+    border: 1px solid #e4e7eb;
 
-            </div>
+    border-radius: 14px;
 
+    padding: 30px;
 
-        </div>
+    box-shadow:
+        0 10px 35px rgba(22, 30, 38, 0.06);
 
+    transition: all 0.3s ease;
+}
 
 
-        <!-- =============================================
-             PROCESSING SECTION
-        ============================================== -->
+.card-header {
 
-        <div
-            id="processingSection"
-            class="processing-section"
-        >
+    display: flex;
 
+    justify-content: space-between;
 
-            <!-- Animated Analysis Icon -->
+    align-items: flex-start;
 
-            <div class="processing-icon">
+    margin-bottom: 25px;
+}
 
 
-                <div class="orbit orbit-one"></div>
+.card-title {
 
-                <div class="orbit orbit-two"></div>
+    font-size: 15px;
 
-                <div class="orbit orbit-three"></div>
+    font-weight: 700;
 
+    color: #202831;
 
-                <div class="core">
+    margin-bottom: 5px;
+}
 
-                    <span>
-                        ✦
-                    </span>
 
-                </div>
+.card-description {
 
+    font-size: 12px;
 
-            </div>
+    color: #8a929b;
+}
 
 
+.secure-label {
 
-            <div class="processing-title">
+    font-size: 10px;
 
-                Analyzing Transport Request
+    color: #7b838c;
 
-            </div>
+    display: flex;
 
+    align-items: center;
 
-            <div
-                id="processingTransport"
-                class="processing-transport"
-            >
-                DEVK900123
-            </div>
+    gap: 6px;
+}
 
 
-            <!-- Current Status -->
+.lock {
 
-            <div
-                id="processingStatus"
-                class="processing-status"
-            >
-                Connecting to SAP...
-            </div>
+    font-size: 12px;
 
+    color: #2fa36b;
+}
 
 
-            <!-- Progress -->
 
-            <div class="progress-container">
+/* =====================================================
+   INPUT
+===================================================== */
 
-                <div
-                    id="progressBar"
-                    class="progress-bar"
-                ></div>
+.input-label {
 
-            </div>
+    display: block;
 
+    font-size: 11px;
 
+    font-weight: 700;
 
-            <div class="processing-footer">
+    color: #515a64;
 
+    margin-bottom: 8px;
 
-                <span id="processingPercent">
-                    0%
-                </span>
+    letter-spacing: 0.4px;
 
+    text-transform: uppercase;
+}
 
-                <span>
-                    Please don't close this window
-                </span>
 
+.input-wrapper {
 
-            </div>
+    display: flex;
 
+    gap: 10px;
+}
 
-        </div>
 
+.transport-input {
 
-    </section>
+    flex: 1;
 
+    height: 48px;
 
+    border: 1px solid #d8dde2;
 
-    <!-- =================================================
-         FOOTER
-    ================================================== -->
+    border-radius: 7px;
 
-    <div class="footer">
+    padding: 0 15px;
 
-        ABAP Intelligence · Internal Enterprise Platform
+    font-size: 13px;
 
-    </div>
+    font-family: Consolas, monospace;
 
+    color: #242c35;
 
-</main>
+    background: #fcfcfd;
 
+    transition: all 0.2s ease;
+}
 
 
-<script src="script.js"></script>
+.transport-input::placeholder {
 
-</body>
+    color: #aab1b8;
+}
 
-</html>
+
+.transport-input:focus {
+
+    outline: none;
+
+    border-color: #7f8993;
+
+    background: white;
+
+    box-shadow:
+        0 0 0 3px rgba(100, 110, 120, 0.08);
+}
+
+
+
+/* =====================================================
+   BUTTON
+===================================================== */
+
+.review-button {
+
+    height: 48px;
+
+    padding: 0 24px;
+
+    border: none;
+
+    border-radius: 7px;
+
+    background: #252c34;
+
+    color: white;
+
+    font-size: 12px;
+
+    font-weight: 600;
+
+    letter-spacing: 0.2px;
+
+    cursor: pointer;
+
+    transition: all 0.2s ease;
+
+    white-space: nowrap;
+}
+
+
+.review-button:hover {
+
+    background: #111820;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 5px 12px rgba(20, 27, 34, 0.15);
+}
+
+
+.review-button:active {
+
+    transform: translateY(0);
+}
+
+
+
+/* =====================================================
+   RESULT MESSAGE
+===================================================== */
+
+.result-message {
+
+    display: none;
+
+    margin-top: 15px;
+
+    padding: 11px 13px;
+
+    border-radius: 6px;
+
+    background: #f5f7f8;
+
+    border: 1px solid #e5e8eb;
+
+    color: #68717b;
+
+    font-size: 11px;
+
+    line-height: 1.5;
+}
+
+
+
+/* =====================================================
+   DIVIDER
+===================================================== */
+
+.divider {
+
+    height: 1px;
+
+    background: #edf0f2;
+
+    margin: 30px 0;
+}
+
+
+
+/* =====================================================
+   FEATURES
+===================================================== */
+
+.features {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 18px;
+}
+
+
+.feature {
+
+    padding: 20px;
+
+    border: 1px solid #e8ebee;
+
+    border-radius: 9px;
+
+    background: #fafbfc;
+
+    transition: all 0.2s ease;
+}
+
+
+.feature:hover {
+
+    background: white;
+
+    border-color: #dce1e5;
+
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 5px 18px rgba(20, 28, 36, 0.05);
+}
+
+
+.feature-icon {
+
+    width: 31px;
+
+    height: 31px;
+
+    border-radius: 7px;
+
+    background: #eceff2;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    margin-bottom: 13px;
+
+    font-size: 14px;
+
+    color: #4e5862;
+}
+
+
+.feature-title {
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    color: #333c45;
+
+    margin-bottom: 6px;
+}
+
+
+.feature-description {
+
+    font-size: 11px;
+
+    line-height: 1.5;
+
+    color: #858d96;
+}
+
+
+
+/* =====================================================
+   PROCESSING SECTION
+===================================================== */
+
+.processing-section {
+
+    display: none;
+
+    text-align: center;
+
+    padding: 15px 10px 5px;
+}
+
+
+
+/* =====================================================
+   ANIMATED ANALYSIS ICON
+===================================================== */
+
+.processing-icon {
+
+    width: 105px;
+
+    height: 105px;
+
+    margin: 0 auto 25px;
+
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+}
+
+
+.core {
+
+    width: 40px;
+
+    height: 40px;
+
+    border-radius: 50%;
+
+    background: #252c34;
+
+    color: white;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 17px;
+
+    position: relative;
+
+    z-index: 5;
+
+    box-shadow:
+        0 0 0 6px rgba(37, 44, 52, 0.05),
+        0 0 25px rgba(37, 44, 52, 0.13);
+
+    animation:
+        corePulse 1.7s ease-in-out infinite;
+}
+
+
+.orbit {
+
+    position: absolute;
+
+    border: 1px solid #d1d6db;
+
+    border-radius: 50%;
+}
+
+
+.orbit-one {
+
+    width: 65px;
+
+    height: 65px;
+
+    animation:
+        rotateClockwise 2.8s linear infinite;
+}
+
+
+.orbit-two {
+
+    width: 84px;
+
+    height: 84px;
+
+    border-style: dashed;
+
+    animation:
+        rotateCounter 4.5s linear infinite;
+}
+
+
+.orbit-three {
+
+    width: 104px;
+
+    height: 104px;
+
+    border-color: #e7eaed;
+
+    animation:
+        rotateClockwise 7s linear infinite;
+}
+
+
+@keyframes rotateClockwise {
+
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+
+@keyframes rotateCounter {
+
+    from {
+        transform: rotate(360deg);
+    }
+
+    to {
+        transform: rotate(0deg);
+    }
+}
+
+
+@keyframes corePulse {
+
+    0%, 100% {
+
+        transform: scale(1);
+
+        box-shadow:
+            0 0 0 6px rgba(37, 44, 52, 0.05),
+            0 0 25px rgba(37, 44, 52, 0.13);
+    }
+
+    50% {
+
+        transform: scale(1.08);
+
+        box-shadow:
+            0 0 0 10px rgba(37, 44, 52, 0.04),
+            0 0 35px rgba(37, 44, 52, 0.18);
+    }
+}
+
+
+
+/* =====================================================
+   PROCESSING TEXT
+===================================================== */
+
+.processing-title {
+
+    font-size: 17px;
+
+    font-weight: 700;
+
+    color: #252c34;
+
+    margin-bottom: 6px;
+}
+
+
+.processing-transport {
+
+    font-family: Consolas, monospace;
+
+    font-size: 11px;
+
+    color: #8a929b;
+
+    margin-bottom: 25px;
+}
+
+
+.processing-status {
+
+    font-size: 12px;
+
+    color: #68717b;
+
+    min-height: 18px;
+
+    transition: opacity 0.3s ease;
+}
+
+
+
+/* =====================================================
+   PROGRESS BAR
+===================================================== */
+
+.progress-container {
+
+    height: 5px;
+
+    background: #edf0f2;
+
+    border-radius: 10px;
+
+    margin: 20px auto 10px;
+
+    max-width: 470px;
+
+    overflow: hidden;
+}
+
+
+.progress-bar {
+
+    width: 0%;
+
+    height: 100%;
+
+    background: #252c34;
+
+    border-radius: 10px;
+
+    transition:
+        width 0.6s ease;
+}
+
+
+
+/* =====================================================
+   PROCESSING FOOTER
+===================================================== */
+
+.processing-footer {
+
+    max-width: 470px;
+
+    margin: auto;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    font-size: 9px;
+
+    color: #a0a7ae;
+}
+
+
+#processingPercent {
+
+    font-weight: 700;
+
+    color: #69727c;
+}
+
+
+
+/* =====================================================
+   SCANNING LINE
+===================================================== */
+
+.processing-section::after {
+
+    content: "";
+
+    display: block;
+
+    height: 1px;
+
+    margin-top: 25px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            #dfe3e7,
+            transparent
+        );
+
+    animation:
+        scanningLine 2s ease-in-out infinite;
+}
+
+
+@keyframes scanningLine {
+
+    0% {
+
+        opacity: 0.2;
+
+        transform: scaleX(0.3);
+    }
+
+    50% {
+
+        opacity: 1;
+
+        transform: scaleX(1);
+    }
+
+    100% {
+
+        opacity: 0.2;
+
+        transform: scaleX(0.3);
+    }
+}
+
+
+
+/* =====================================================
+   FOOTER
+===================================================== */
+
+.footer {
+
+    text-align: center;
+
+    margin-top: 40px;
+
+    color: #a0a7ae;
+
+    font-size: 10px;
+
+    letter-spacing: 0.2px;
+}
+
+
+
+/* =====================================================
+   RESPONSIVE
+===================================================== */
+
+@media (max-width: 700px) {
+
+    .header {
+
+        padding: 0 20px;
+    }
+
+
+    .environment {
+
+        display: none;
+    }
+
+
+    .main {
+
+        padding:
+            50px 20px 40px;
+    }
+
+
+    .hero h1 {
+
+        font-size: 34px;
+    }
+
+
+    .review-card {
+
+        padding: 22px;
+    }
+
+
+    .input-wrapper {
+
+        flex-direction: column;
+    }
+
+
+    .review-button {
+
+        width: 100%;
+    }
+
+
+    .features {
+
+        grid-template-columns: 1fr;
+    }
+
+}
 ```
