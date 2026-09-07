@@ -1,85 +1,263 @@
-document.addEventListener("DOMContentLoaded", function () {
-    checkSAPConnection();
-});
-https://blog.sap-press.com/how-to-integrate-a-python-app-with-sap-business-application-studio-for-an-sap-s4hana-cloud-system
+FORM sub_validate.
 
-async function checkSAPConnection() {
+  DATA:
+    lr_company_code  TYPE RANGE OF bukrs,
+    lr_ledger_group  TYPE RANGE OF fins_ledger,
+    lr_gl_account    TYPE RANGE OF saknr,
+    lr_profit_center TYPE RANGE OF prctr,
+    lr_cost_center   TYPE RANGE OF kostl,
+    lr_internal_ord  TYPE RANGE OF aufnr,
+    lr_wbs_element   TYPE RANGE OF ps_posid,
+    lr_product       TYPE RANGE OF matnr,
+    lr_customer      TYPE RANGE OF kunnr,
+    lr_plant         TYPE RANGE OF werks_d.
 
-    const connectionDot = document.getElementById("connectionDot");
-    const connectionText = document.getElementById("connectionText");
+  "--------------------------------------------------------------------*
+  " Build ranges from input data
+  "--------------------------------------------------------------------*
+  LOOP AT gt_data INTO DATA(ls_data).
 
-    // Initially show checking state
-    connectionDot.classList.remove("connected", "disconnected");
-    connectionDot.classList.add("checking");
+    CASE ls_data-field1.
 
-    connectionText.textContent = "Checking SAP...";
+      WHEN 'H'.
 
-    try {
+        " Company Code
+        IF ls_data-field2 IS NOT INITIAL.
+          lr_company_code = VALUE #( BASE lr_company_code
+            ( sign   = gc_include
+              option = gc_equal
+              low    = ls_data-field2 ) ).
+        ENDIF.
 
-        const response = await fetch(
-            "http://localhost:8000/check_connection"
-        );
+        " Ledger Group
+        IF ls_data-field11 IS NOT INITIAL.
+          lr_ledger_group = VALUE #( BASE lr_ledger_group
+            ( sign   = gc_include
+              option = gc_equal
+              low    = ls_data-field11 ) ).
+        ENDIF.
 
-        if (!response.ok) {
-            throw new Error("SAP connection failed");
-        }
+      WHEN 'D'.
 
-        // SAP is connected
-        connectionDot.classList.remove("checking", "disconnected");
-        connectionDot.classList.add("connected");
+        " G/L Account
+        IF ls_data-field11 IS NOT INITIAL.
+          lr_gl_account = VALUE #( BASE lr_gl_account
+            ( sign   = gc_include
+              option = gc_equal
+              low    = ls_data-field11 ) ).
+        ENDIF.
 
-        connectionText.textContent = "SAP Connected";
+        " Profit Center
+        IF ls_data-field12 IS NOT INITIAL.
+          lr_profit_center = VALUE #( BASE lr_profit_center
+            ( sign   = gc_include
+              option = gc_equal
+              low    = ls_data-field12 ) ).
+        ENDIF.
 
-    } catch (error) {
+        " Cost Center
+        IF ls_data-field13 IS NOT INITIAL.
+          lr_cost_center = VALUE #( BASE lr_cost_center
+            ( sign   = gc_include
+              option = gc_equal
+              low    = ls_data-field13 ) ).
+        ENDIF.
 
-        // SAP is disconnected
-        connectionDot.classList.remove("checking", "connected");
-        connectionDot.classList.add("disconnected");
+        " Internal Order
+        IF ls_data-field14 IS NOT INITIAL.
+          lr_internal_ord = VALUE #( BASE lr_internal_ord
+            ( sign   = gc_include
+              option = gc_equal
+              low    = ls_data-field14 ) ).
+        ENDIF.
 
-        connectionText.textContent = "SAP Disconnected";
+        " WBS Element
+        IF ls_data-field15 IS NOT INITIAL.
+          lr_wbs_element = VALUE #( BASE lr_wbs_element
+            ( sign   = gc_include
+              option = gc_equal
+              low    = ls_data-field15 ) ).
+        ENDIF.
 
-        console.error("SAP connection error:", error);
-    }
-}
+        " Product
+        IF ls_data-field21 IS NOT INITIAL.
+          lr_product = VALUE #( BASE lr_product
+            ( sign   = gc_include
+              option = gc_equal
+              low    = ls_data-field21 ) ).
+        ENDIF.
 
-<div class="connection">
+        " Customer
+        IF ls_data-field25 IS NOT INITIAL.
+          lr_customer = VALUE #( BASE lr_customer
+            ( sign   = gc_include
+              option = gc_equal
+              low    = ls_data-field25 ) ).
+        ENDIF.
 
-    <span id="connectionDot" class="status-dot checking"></span>
+        " Plant
+        IF ls_data-field26 IS NOT INITIAL.
+          lr_plant = VALUE #( BASE lr_plant
+            ( sign   = gc_include
+              option = gc_equal
+              low    = ls_data-field26 ) ).
+        ENDIF.
 
-    <span id="connectionText">
-        Checking SAP...
-    </span>
+    ENDCASE.
 
-</div>
+  ENDLOOP.
 
+  "--------------------------------------------------------------------*
+  " Sort ranges and remove duplicate entries
+  "--------------------------------------------------------------------*
+  SORT lr_company_code BY low.
+  DELETE ADJACENT DUPLICATES FROM lr_company_code COMPARING low.
 
+  SORT lr_ledger_group BY low.
+  DELETE ADJACENT DUPLICATES FROM lr_ledger_group COMPARING low.
 
-.status-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    display: inline-block;
-}
+  SORT lr_gl_account BY low.
+  DELETE ADJACENT DUPLICATES FROM lr_gl_account COMPARING low.
 
-.status-dot.connected {
-    background: #16a34a;
-}
+  SORT lr_profit_center BY low.
+  DELETE ADJACENT DUPLICATES FROM lr_profit_center COMPARING low.
 
-.status-dot.disconnected {
-    background: #dc2626;
-}
+  SORT lr_cost_center BY low.
+  DELETE ADJACENT DUPLICATES FROM lr_cost_center COMPARING low.
 
-.status-dot.checking {
-    background: #f59e0b;
-    animation: connectionPulse 1.2s infinite;
-}
+  SORT lr_internal_ord BY low.
+  DELETE ADJACENT DUPLICATES FROM lr_internal_ord COMPARING low.
 
-@keyframes connectionPulse {
-    0%, 100% {
-        opacity: 1;
-    }
+  SORT lr_wbs_element BY low.
+  DELETE ADJACENT DUPLICATES FROM lr_wbs_element COMPARING low.
 
-    50% {
-        opacity: 0.35;
-    }
-}
+  SORT lr_product BY low.
+  DELETE ADJACENT DUPLICATES FROM lr_product COMPARING low.
+
+  SORT lr_customer BY low.
+  DELETE ADJACENT DUPLICATES FROM lr_customer COMPARING low.
+
+  SORT lr_plant BY low.
+  DELETE ADJACENT DUPLICATES FROM lr_plant COMPARING low.
+
+  "--------------------------------------------------------------------*
+  " Fetch valid Customer master records
+  "--------------------------------------------------------------------*
+  SELECT
+    @gc_include AS sign,
+    @gc_equal   AS option,
+    kunnr       AS low,
+    kunnr       AS high
+    FROM kna1
+    INTO TABLE @DATA(lt_customer_range)
+    WHERE kunnr IN @lr_customer.
+
+  "--------------------------------------------------------------------*
+  " Fetch valid Company Code master records
+  "--------------------------------------------------------------------*
+  SELECT
+    @gc_include AS sign,
+    @gc_equal   AS option,
+    bukrs       AS low,
+    bukrs       AS high
+    FROM t001
+    INTO TABLE @DATA(lt_company_code_range)
+    WHERE bukrs IN @lr_company_code.
+
+  "--------------------------------------------------------------------*
+  " Fetch valid Ledger Group master records
+  "--------------------------------------------------------------------*
+  SELECT
+    @gc_include AS sign,
+    @gc_equal   AS option,
+    rldnr       AS low,
+    rldnr       AS high
+    FROM t881
+    INTO TABLE @DATA(lt_ledger_group_range)
+    WHERE rldnr IN @lr_ledger_group.
+
+  "--------------------------------------------------------------------*
+  " Fetch valid G/L Account master records
+  "--------------------------------------------------------------------*
+  SELECT
+    @gc_include AS sign,
+    @gc_equal   AS option,
+    saknr       AS low,
+    saknr       AS high
+    FROM ska1
+    INTO TABLE @DATA(lt_gl_account_range)
+    WHERE saknr IN @lr_gl_account.
+
+  "--------------------------------------------------------------------*
+  " Fetch valid Profit Center master records
+  "--------------------------------------------------------------------*
+  SELECT
+    @gc_include AS sign,
+    @gc_equal   AS option,
+    prctr       AS low,
+    prctr       AS high
+    FROM cepc
+    INTO TABLE @DATA(lt_profit_center_range)
+    WHERE prctr IN @lr_profit_center.
+
+  "--------------------------------------------------------------------*
+  " Fetch valid Cost Center master records
+  "--------------------------------------------------------------------*
+  SELECT
+    @gc_include AS sign,
+    @gc_equal   AS option,
+    kostl       AS low,
+    kostl       AS high
+    FROM csks
+    INTO TABLE @DATA(lt_cost_center_range)
+    WHERE kostl IN @lr_cost_center.
+
+  "--------------------------------------------------------------------*
+  " Fetch valid Internal Order master records
+  "--------------------------------------------------------------------*
+  SELECT
+    @gc_include AS sign,
+    @gc_equal   AS option,
+    aufnr       AS low,
+    aufnr       AS high
+    FROM aufk
+    INTO TABLE @DATA(lt_internal_order_range)
+    WHERE aufnr IN @lr_internal_ord.
+
+  "--------------------------------------------------------------------*
+  " Fetch valid WBS Element master records
+  "--------------------------------------------------------------------*
+  SELECT
+    @gc_include AS sign,
+    @gc_equal   AS option,
+    posid       AS low,
+    posid       AS high
+    FROM prps
+    INTO TABLE @DATA(lt_wbs_element_range)
+    WHERE posid IN @lr_wbs_element.
+
+  "--------------------------------------------------------------------*
+  " Fetch valid Product / Material master records
+  "--------------------------------------------------------------------*
+  SELECT
+    @gc_include AS sign,
+    @gc_equal   AS option,
+    matnr       AS low,
+    matnr       AS high
+    FROM mara
+    INTO TABLE @DATA(lt_product_range)
+    WHERE matnr IN @lr_product.
+
+  "--------------------------------------------------------------------*
+  " Fetch valid Plant master records
+  "--------------------------------------------------------------------*
+  SELECT
+    @gc_include AS sign,
+    @gc_equal   AS option,
+    werks       AS low,
+    werks       AS high
+    FROM t001w
+    INTO TABLE @DATA(lt_plant_range)
+    WHERE werks IN @lr_plant.
+
+ENDFORM.
