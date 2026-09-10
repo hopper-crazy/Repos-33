@@ -1,26 +1,366 @@
-" Validate ledger group and derive accounting principle
-IF us_ls_data-field11 IS NOT INITIAL.
-  cs_ls_documentheader-ledger_group = us_ls_data-field11.
+"-----------------------------------------------------------------------
+" Local Constants
+"-----------------------------------------------------------------------
+
+CONSTANTS:
+  lc_debit       TYPE bschl    VALUE '40',
+  lc_vkorg       TYPE rvari_vnam VALUE 'ZR2R_E0118_VKORG',
+  lc_vtweg       TYPE rvari_vnam VALUE 'ZR2R_E0118_VTWEG',
+  lc_spart       TYPE rvari_vnam VALUE 'ZR2R_E0118_SPART',
+  lc_kndnr       TYPE rvari_vnam VALUE 'ZR2R_E0118_KNDNR',
+  lc_werks       TYPE rvari_vnam VALUE 'ZR2R_E0118_WERKS',
+  lc_usd         TYPE waers     VALUE 'USD',
+  lc_curr_typ_00 TYPE curtp     VALUE '00',
+  lc_curr_typ_10 TYPE curtp     VALUE '10',
+  lc_curr_typ_30 TYPE curtp     VALUE '30',
+  lc_curr_typ_31 TYPE curtp     VALUE '31'.
+
+
+"-----------------------------------------------------------------------
+" Local Data Declarations
+"-----------------------------------------------------------------------
+
+DATA:
+  ls_accountgl TYPE bapiacgl09,
+  ls_curramt   TYPE bapiaccr09,
+  ls_criteria  TYPE bapiackec9,
+  ls_tvarvc    TYPE gy_tvarvc,
+  lv_linecount TYPE i,
+  lv_waers_10  TYPE waers,
+  lv_amount_00 TYPE bapidoccur,
+  lv_amount_10 TYPE bapidoccur,
+  lv_amount_30 TYPE bapidoccur,
+  lv_amount_31 TYPE bapidoccur.
+
+
+" Item number
+ls_accountgl-itemno_acc = uv_itemno.
+
+" Allocation number
+IF us_ls_data-field2 IS NOT INITIAL.
+  ls_accountgl-alloc_nmbr = us_ls_data-field2.
 ENDIF.
 
-"--------------------------------------------------------------
-" Fill document header if posting allowed
-"--------------------------------------------------------------
-
-cs_ls_documentheader-username        = sy-uname.
-cs_ls_documentheader-comp_code       = us_ls_data-field2.
-cs_ls_documentheader-ref_doc_no      = us_ls_data-field3.
-cs_ls_documentheader-header_txt      = us_ls_data-field4.
-cs_ls_documentheader-doc_type        = us_ls_data-field5.
-IF us_ls_data-field6 IS NOT INITIAL.
-  cs_ls_documentheader-doc_date      = us_ls_data-field6.
-ENDIF.
-IF us_ls_data-field7 IS NOT INITIAL.
-  cs_ls_documentheader-pstng_date    = us_ls_data-field7.
-ENDIF.
+" Tax code
 IF us_ls_data-field8 IS NOT INITIAL.
-  cs_ls_documentheader-planned_rev_date = us_ls_data-field8.
-  cs_ls_documentheader-reason_rev    = us_ls_data-field9.
+  ls_accountgl-tax_code = us_ls_data-field8.
 ENDIF.
 
-cs_ls_documentheader-fisc_year       = us_ls_data-field7+0(4).
+" Tax jurisdiction code
+IF us_ls_data-field9 IS NOT INITIAL.
+  ls_accountgl-taxjurcode = us_ls_data-field9.
+ENDIF.
+
+" Item text
+IF us_ls_data-field10 IS NOT INITIAL.
+  ls_accountgl-item_text = us_ls_data-field10.
+ENDIF.
+
+" G/L account (ALPHA conversion only if value exists)
+IF us_ls_data-field11 IS NOT INITIAL.
+  ls_accountgl-gl_account = |{ us_ls_data-field11 ALPHA = IN }|.
+ENDIF.
+
+" Profit Center
+IF us_ls_data-field12 IS NOT INITIAL.
+  ls_accountgl-profit_ctr = |{ us_ls_data-field12 ALPHA = IN }|.
+ENDIF.
+
+" Cost Center
+IF us_ls_data-field13 IS NOT INITIAL.
+  ls_accountgl-costcenter = |{ us_ls_data-field13 ALPHA = IN }|.
+ENDIF.
+
+" Internal Order
+IF us_ls_data-field14 IS NOT INITIAL.
+  ls_accountgl-orderid = |{ us_ls_data-field14 ALPHA = IN }|.
+ENDIF.
+
+" WBS Element
+IF us_ls_data-field15 IS NOT INITIAL.
+  CALL FUNCTION 'CONVERSION_EXIT_ABPSN_INPUT'
+    EXPORTING
+      input  = us_ls_data-field15
+    IMPORTING
+      output = ls_accountgl-wbs_element.
+ENDIF.
+
+" Functional Area
+IF us_ls_data-field16 IS NOT INITIAL.
+  ls_accountgl-func_area = us_ls_data-field16.
+ENDIF.
+
+" House Bank Account
+IF us_ls_data-field17 IS NOT INITIAL.
+  ls_accountgl-housebankacctid = us_ls_data-field17.
+ENDIF.
+
+" House Bank
+IF us_ls_data-field18 IS NOT INITIAL.
+  ls_accountgl-housebankid = us_ls_data-field18.
+ENDIF.
+
+" Segment
+IF us_ls_data-field19 IS NOT INITIAL.
+  ls_accountgl-segment = us_ls_data-field19.
+ENDIF.
+
+" Trade ID
+IF us_ls_data-field20 IS NOT INITIAL.
+  ls_accountgl-trade_id = |{ us_ls_data-field20 ALPHA = IN }|.
+ENDIF.
+
+" Material
+IF us_ls_data-field21 IS NOT INITIAL.
+  ls_accountgl-material = |{ us_ls_data-field21 ALPHA = IN }|.
+ENDIF.
+
+"-----------------------------------------------------------------------
+" GL Master Validation (SKB1)
+"-----------------------------------------------------------------------
+
+READ TABLE gt_skb1 ASSIGNING FIELD-SYMBOL(<lfs_skb1>)
+  WITH KEY bukrs = us_documentheader-comp_code
+           saknr = ls_accountgl-gl_account
+  BINARY SEARCH.
+
+IF <lfs_skb1> IS ASSIGNED
+   AND <lfs_skb1>-xintb IS NOT INITIAL.
+
+  " Error: Reconciliation account not allowed
+  APPEND VALUE #(
+    journal_id = uv_journal_id
+    messtyp    = gc_err
+    message    = |{ TEXT-039 } { <lfs_skb1>-saknr } { TEXT-040 } { <lfs_skb1>-bukrs }|
+  ) TO ct_return_tmp.
+
+  RETURN.
+
+ENDIF.
+
+
+"-----------------------------------------------------------------------
+" Amount Calculation
+"-----------------------------------------------------------------------
+" Handle Debit / Credit sign
+" Accumulate totals for Transaction, Local & Group currency
+"-----------------------------------------------------------------------
+
+IF us_ls_data-field3 = lc_debit.
+
+  " Debit amounts (positive)
+  cv_tot_amt_trx += us_ls_data-field4.
+
+  lv_amount_00 = us_ls_data-field4.  " Transaction currency
+  lv_amount_10 = us_ls_data-field5.  " Local currency
+  lv_amount_30 = us_ls_data-field6.  " Global currency
+  lv_amount_31 = us_ls_data-field7.  " Group currency
+
+  IF lv_amount_10 IS NOT INITIAL.
+    cv_tot_amt_loc += us_ls_data-field5.
+  ENDIF.
+
+  IF lv_amount_30 IS NOT INITIAL.
+    cv_tot_amt_glb += us_ls_data-field6.
+  ENDIF.
+
+  IF lv_amount_31 IS NOT INITIAL.
+    cv_tot_amt_grp += us_ls_data-field7.
+  ENDIF.
+
+ELSE.
+
+  " Credit amounts (negative)
+  cv_tot_amt_trx -= us_ls_data-field4.
+
+  lv_amount_00 = us_ls_data-field4 * -1.
+  lv_amount_10 = us_ls_data-field5 * -1.
+  lv_amount_30 = us_ls_data-field6 * -1.
+  lv_amount_31 = us_ls_data-field7 * -1.
+
+  IF lv_amount_10 IS NOT INITIAL.
+    cv_tot_amt_loc -= us_ls_data-field5.
+  ENDIF.
+
+  IF lv_amount_30 IS NOT INITIAL.
+    cv_tot_amt_glb -= us_ls_data-field6.
+  ENDIF.
+
+  IF lv_amount_31 IS NOT INITIAL.
+    cv_tot_amt_grp -= us_ls_data-field7.
+  ENDIF.
+
+ENDIF.
+
+
+"-----------------------------------------------------------------------
+" Currency Amounts
+" Build BAPI currency lines for document, local & group currency
+"-----------------------------------------------------------------------
+
+" Transaction / Document currency (00)
+ct_lt_curramt = VALUE #(
+  BASE ct_lt_curramt
+  (
+    itemno_acc = uv_itemno
+    curr_type  = lc_curr_typ_00
+    currency   = uv_waers
+    amt_doccur = lv_amount_00
+  )
+).
+
+
+" Document & Local currency (company code based)
+IF line_exists( gt_t001[ bukrs = us_documentheader-comp_code ] ).
+
+  " Local currency (10)
+  IF lv_amount_10 IS NOT INITIAL.
+    ct_lt_curramt = VALUE #(
+      BASE ct_lt_curramt
+      (
+        itemno_acc = uv_itemno
+        curr_type  = lc_curr_typ_10
+        currency   = gt_t001[ bukrs = us_documentheader-comp_code ]-waers
+        amt_doccur = lv_amount_10
+      )
+    ).
+  ENDIF.
+
+ENDIF.
+
+
+" Global currency (30)
+IF lv_amount_30 IS NOT INITIAL.
+  ct_lt_curramt = VALUE #(
+    BASE ct_lt_curramt
+    (
+      itemno_acc = uv_itemno
+      curr_type  = lc_curr_typ_30
+      currency   = gv_grp_curr
+      amt_doccur = lv_amount_30
+    )
+  ).
+ENDIF.
+
+
+" Group currency (31)
+IF lv_amount_31 IS NOT INITIAL.
+  ct_lt_curramt = VALUE #(
+    BASE ct_lt_curramt
+    (
+      itemno_acc = uv_itemno
+      curr_type  = lc_curr_typ_31
+      currency   = lc_usd
+      amt_doccur = lv_amount_31
+    )
+  ).
+ENDIF.
+
+
+"-----------------------------------------------------------------------
+" CO-PA / Additional Criteria
+"-----------------------------------------------------------------------
+
+" Product Hierarchy
+IF us_ls_data-field22 IS NOT INITIAL.
+  ls_criteria-fieldname    = gc_prdha.
+  ls_criteria-itemno_acc  = uv_itemno.
+  ls_criteria-character   = us_ls_data-field22.
+
+  APPEND ls_criteria TO ct_criteria.
+  CLEAR ls_criteria.
+ENDIF.
+
+
+"**** Start ~ Added Product field in COPA - Rini****
+"**** Defect #6822
+" Product
+IF us_ls_data-field21 IS NOT INITIAL.
+  ls_criteria-fieldname   = 'ARTNR'. "gc_prdha.
+  ls_criteria-itemno_acc = uv_itemno.
+  ls_criteria-character  = |{ us_ls_data-field21 ALPHA = IN }|.
+
+  APPEND ls_criteria TO ct_criteria.
+  CLEAR ls_criteria.
+ENDIF.
+"**** Defect #6822
+"**** End - Added Product field in COPA - Rini****
+
+
+" Quantity
+IF us_ls_data-field23 IS NOT INITIAL.
+  ls_accountgl-quantity = us_ls_data-field23.
+ENDIF.
+
+
+" Base Unit of Measure
+IF us_ls_data-field24 IS NOT INITIAL.
+
+  CALL FUNCTION 'CONVERSION_EXIT_CUNIT_INPUT'
+    EXPORTING
+      input    = us_ls_data-field24
+      language = sy-langu
+    IMPORTING
+      output   = ls_accountgl-base_uom
+    EXCEPTIONS
+      OTHERS   = 2.
+
+  IF sy-subrc <> 0.
+    CLEAR ls_accountgl-base_uom.
+  ENDIF.
+
+ENDIF.
+
+
+" Customer
+IF us_ls_data-field25 IS NOT INITIAL.
+
+  READ TABLE gt_tvarvc INTO ls_tvarvc
+    WITH KEY name = lc_kndnr
+    BINARY SEARCH.
+
+  IF sy-subrc = 0.
+    ls_criteria-fieldname   = ls_tvarvc-low.
+    ls_criteria-itemno_acc = uv_itemno.
+    ls_criteria-character  = us_ls_data-field25.
+
+    APPEND ls_criteria TO ct_criteria.
+    CLEAR: ls_criteria, ls_tvarvc.
+  ENDIF.
+
+ENDIF.
+
+
+" Plant
+IF us_ls_data-field26 IS NOT INITIAL.
+
+  READ TABLE gt_tvarvc INTO ls_tvarvc
+    WITH KEY name = lc_werks
+    BINARY SEARCH.
+
+  IF sy-subrc = 0.
+    ls_criteria-fieldname   = ls_tvarvc-low.
+    ls_criteria-itemno_acc = uv_itemno.
+    ls_criteria-character  = us_ls_data-field26.
+
+    APPEND ls_criteria TO ct_criteria.
+    CLEAR: ls_criteria, ls_tvarvc.
+
+    ls_accountgl-plant = us_ls_data-field26.
+  ENDIF.
+
+ENDIF.
+
+
+" Cross-Company Transaction
+IF us_ls_data-field27 IS NOT INITIAL.
+  ls_accountgl-cs_trans_t = us_ls_data-field27.
+ENDIF.
+
+
+" Append GL item
+APPEND ls_accountgl TO ct_lt_accountgl.
+
+ENDIF.
+
+ENDFORM.
