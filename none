@@ -1,16 +1,5 @@
-Hi,
+Hi Nitin,
 
-I am working on creating a **Custom Business Configuration (CBC) Fiori tile/app** for maintaining business configuration instead of using the traditional TMG approach.
+I’ve prepared the complete documentation for our SPICE app, covering everything in detail.
 
-The **Custom Business Configurations (F4579)** app access is required to create and maintain the required configuration application in **DS5 and DF5**.
-
-We have raised this request as an **ADO Bug** based on Alla-Uddin’s guidance that if the request is related to **R8NA**, it should be raised as a Bug.
-
-This is not related to debugging an issue, so there is no relevant Bug, SUS3, or error screenshot to attach.
-
-Also, this is a **common/shared Fiori application** for business configuration activities, so the required access should be available to users who need to perform these activities.
-
-For better understanding of the CBC approach, I am also sharing the following reference:
-[SAP RAP – Implementing Custom Business Configuration (CBC)](https://medium.com/sap-innovation-hub/sap-rap-implementing-custom-business-configuration-cbc-da09db3d409e?utm_source=chatgpt.com)
-
-The article demonstrates creating the configuration table, generating the required RAP maintenance objects, publishing the V4 configuration, and accessing the configuration through the Fiori launchpad.
+Please have a look and let me know your feedback. Once you’ve reviewed it, we can share it with Thomas.
