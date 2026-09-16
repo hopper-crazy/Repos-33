@@ -1,5 +1,812 @@
-Hi Nitin,
+Master Prompt: McCormick SAP S/4HANA Coding Standards, Development Best Practices and Governance
+Role and Objective
 
-I’ve prepared the complete documentation for our SPICE app, covering everything in detail.
+Act as a Senior SAP S/4HANA Technical Architect, ABAP Development Lead, ABAP Cloud Specialist, and Enterprise Development Governance Consultant.
 
-Please have a look and let me know your feedback. Once you’ve reviewed it, we can share it with Thomas.
+Using the previously generated McCormick SAP S/4HANA Custom Development Naming Convention and Technical Standards document as the foundation, create a comprehensive organizational coding standards document for McCormick.
+
+The new document must define how SAP custom developments are designed, coded, tested, secured, reviewed, deployed, and maintained.
+
+The objective is to establish a consistent development approach across all relevant SAP S/4HANA business streams, including R2R, O2C, P2P, and shared enterprise developments.
+
+The document must contain at least 150 individually numbered, actionable coding standards, organized into logical categories.
+
+Do not simply list generic recommendations. Explain the standard, why it matters, when it applies, and how developers should implement it.
+
+The document must be suitable for SAP developers, technical leads, solution architects, reviewers, and governing members.
+
+1. Organizational Standards and Scope
+
+Establish a clear hierarchy of standards:
+
+Mandatory — must be followed unless an approved exception exists.
+Recommended — preferred development practice.
+Conditional — applicable when the relevant technology or business requirement is present.
+Deprecated — should not be used for new development, with migration guidance where appropriate.
+
+For each standard, specify its applicability and any relevant exceptions.
+
+Distinguish between:
+
+SAP technical requirements.
+SAP-recommended development practices.
+Proposed McCormick organizational standards.
+Standards requiring confirmation from McCormick architecture, security, Basis, or governance teams.
+
+Do not invent existing McCormick policies.
+
+Use the naming convention document as the source of truth for object names. All code examples and repository object names must follow its underscore-separated naming convention wherever SAP technically permits it.
+
+Use R2R, O2C, and P2P for examples. Shared objects must follow the previously defined stream-independent naming rules. CFL objects must not include a business-stream identifier.
+
+PART I — CORE DEVELOPMENT AND ARCHITECTURE STANDARDS
+2. Development Architecture and Clean Core
+
+Create detailed standards covering:
+
+Clean Core principles.
+SAP standard functionality versus custom development.
+Fit-to-standard assessment before development.
+Reuse of existing SAP functionality.
+Custom development approval.
+In-app extensibility versus side-by-side extensibility.
+ABAP Cloud development principles.
+Released SAP APIs and objects.
+Prohibited dependencies on unreleased SAP internals.
+Upgrade-safe extension design.
+Separation of business logic, data access, and presentation.
+Layered architecture.
+Separation of concerns.
+Reusable business services.
+Shared components across business streams.
+Avoiding unnecessary custom code.
+Avoiding modifications to SAP standard objects.
+Extension points and supported enhancement mechanisms.
+Custom code lifecycle management.
+Architecture review requirements.
+
+Explain how developers should decide whether to use standard SAP functionality, Custom Fields and Logic (CFL), a Cloud BAdI, a RAP extension, or a custom application.
+
+3. Object Naming and Repository Organization
+
+Use the previously generated McCormick naming convention document.
+
+Create coding standards covering:
+
+Repository object naming compliance.
+Business-stream identification.
+Shared utility naming.
+CFL naming exceptions.
+Package naming and hierarchy.
+Package interfaces and visibility.
+Software component organization, where applicable.
+Development object ownership.
+Object descriptions and documentation.
+Avoiding duplicate custom objects.
+Naming generated objects.
+Naming related objects consistently.
+Object dependency management.
+Package-level architecture boundaries.
+Transport organization.
+
+Use examples such as:
+
+Z_R2R_R_001
+ZCL_R2R_DOCUMENT
+Z_I_R2R_DOCUMENT
+
+Clearly distinguish examples from verified McCormick repository objects.
+
+PART II — ABAP CODING STANDARDS
+4. ABAP Language and Syntax
+
+Create detailed standards covering:
+
+Modern ABAP syntax.
+Inline declarations.
+DATA, FINAL, and CONSTANTS usage.
+Type-safe programming.
+Avoiding unnecessary global variables.
+Meaningful variable names.
+Naming of local variables, parameters, and constants.
+Avoiding magic numbers and hardcoded values.
+String templates.
+Constructor expressions.
+VALUE, NEW, CONV, CAST, and CORRESPONDING.
+COND and SWITCH.
+FOR expressions and table comprehensions.
+FILTER, REDUCE, and LET.
+REF and FIELD-SYMBOLS usage.
+Appropriate use of field symbols and data references.
+Avoiding unnecessary temporary variables.
+Avoiding obsolete ABAP statements in new developments.
+Clean formatting and indentation.
+Readability versus excessive syntax compression.
+
+For each topic, provide correct ABAP examples and explain when the syntax is appropriate.
+
+Do not recommend modern syntax merely for being shorter if it reduces readability or performance.
+
+5. Internal Tables and Data Processing
+
+Define standards covering:
+
+Choosing standard, sorted, and hashed internal tables.
+Defining table keys explicitly.
+Using hashed tables for suitable key-based lookups.
+Using sorted tables for suitable ordered and range-based access.
+Avoiding unnecessary nested loops.
+Replacing inefficient repeated reads with suitable data structures.
+Choosing between READ TABLE, table expressions, and other access methods.
+Handling sy-subrc and exceptions correctly.
+Using LOOP AT ... ASSIGNING appropriately.
+Using LOOP AT ... REFERENCE INTO where appropriate.
+Using VALUE and CORRESPONDING safely.
+Avoiding unnecessary copies of large internal tables.
+Avoiding repeated sorting.
+Avoiding redundant duplicate elimination.
+Using SORT, DELETE ADJACENT DUPLICATES, and table keys correctly.
+Efficient data aggregation.
+Memory management for large datasets.
+Avoiding unnecessary table conversions.
+Correct handling of empty tables.
+Performance considerations for large internal tables.
+
+Include examples comparing inefficient and improved implementations.
+
+6. ABAP Classes, Interfaces, and Object-Oriented Design
+
+Define standards covering:
+
+Single Responsibility Principle.
+Class design and method responsibilities.
+Public, protected, and private visibility.
+Constructor design.
+Dependency injection.
+Interface-based design.
+Avoiding unnecessary static methods.
+Factory patterns where appropriate.
+Exception class design.
+Business exceptions versus technical exceptions.
+Avoiding excessively large classes.
+Avoiding excessively large methods.
+Method parameter design.
+Avoiding unnecessary parameter passing.
+Returning structured results.
+Avoiding hidden side effects.
+Avoiding duplicated business logic.
+Reusable utility classes.
+Avoiding unnecessary inheritance.
+Testability and dependency isolation.
+
+Include practical ABAP examples demonstrating good and poor design.
+
+PART III — DATABASE AND DATA ACCESS STANDARDS
+7. Open SQL and Database Access
+
+Create standards covering:
+
+Code-to-data principles.
+Database-side filtering.
+Avoiding SELECT * in production code where explicit fields are appropriate.
+Using WHERE clauses efficiently.
+Avoiding unnecessary database round trips.
+Avoiding SELECT statements inside loops.
+Using joins appropriately.
+Using FOR ALL ENTRIES safely.
+Handling empty driver tables for FOR ALL ENTRIES.
+Using subqueries and common table expressions where appropriate.
+Using GROUP BY and database-side aggregation.
+Using ORDER BY only when required.
+Avoiding unnecessary DISTINCT.
+Handling client-dependent data correctly.
+Using SAP-supported data access patterns.
+Database performance analysis.
+Avoiding direct database updates to SAP application tables.
+Using released APIs for business object updates.
+Transaction boundaries and LUW management.
+Locking and concurrency control.
+
+Provide correct Open SQL examples and explain the performance implications of each standard.
+
+8. CDS Views and Data Modeling
+
+Define standards covering:
+
+CDS view entities as the preferred approach for applicable new developments.
+Appropriate use of classic CDS views.
+Interface, projection, and consumption view separation.
+CDS associations.
+Cardinality correctness.
+CDS annotations.
+Metadata extensions.
+CDS access controls using DCL.
+Authorization-sensitive data exposure.
+Avoiding unnecessary nested CDS layers.
+CDS performance optimization.
+Avoiding excessive calculated fields.
+Appropriate use of virtual elements.
+CDS table functions and AMDP.
+CDS analytical queries.
+Reusable CDS entities.
+Avoiding unnecessary duplication of data models.
+Data model compatibility and extensibility.
+CDS view extensions.
+CDS entity extensions.
+
+Include practical examples using the established McCormick naming convention.
+
+PART IV — SAP S/4HANA EXTENSIBILITY AND ABAP CLOUD
+9. Custom Fields and Logic (CFL)
+
+Create a dedicated section for Custom Fields and Logic.
+
+Define standards covering:
+
+When to use CFL instead of custom database fields.
+When to use CFL instead of modifying SAP standard objects.
+Creating custom fields through supported extensibility tools.
+Field naming and labeling.
+Business context selection.
+Enabling fields for relevant business scenarios.
+Custom logic implementation.
+CFL naming without business-stream prefixes.
+CFL transport and lifecycle management.
+CFL validation and testing.
+CFL integration with CDS and APIs.
+CFL authorization and data exposure.
+Avoiding duplicate custom fields.
+Field usage and retirement.
+CFL limitations and situations requiring other extension mechanisms.
+
+Explain the difference between Custom Fields and Custom Logic.
+
+Do not treat CFL as a single technical repository object or assume that all CFL artifacts have identical naming rules.
+
+Provide examples of when CFL is appropriate and when a custom RAP application or another extension mechanism is required.
+
+10. BAdIs, Enhancements, and Cloud Extensibility
+
+Define standards covering:
+
+Prefer released Cloud BAdIs for supported cloud-compatible extensions.
+Selecting the correct BAdI.
+Avoiding implicit enhancements for new developments where supported alternatives exist.
+Avoiding modifications to SAP standard code.
+Using released enhancement spots.
+BAdI implementation naming.
+BAdI implementation responsibilities.
+Multiple implementation behavior.
+Avoiding duplicate enhancement logic.
+Exception handling inside BAdI implementations.
+Performance considerations.
+Cloud BAdI restrictions.
+Testing enhancement implementations.
+Handling SAP upgrades.
+Documenting enhancement dependencies.
+
+Explain the distinction between classic BAdIs, released Cloud BAdIs, and other enhancement mechanisms.
+
+Provide a decision matrix for choosing between CFL, Cloud BAdIs, RAP extensions, and other supported extensibility options.
+
+PART V — RAP, ODATA, AND MODERN APPLICATION DEVELOPMENT
+11. RAP Development Standards
+
+Define standards covering:
+
+Managed RAP scenarios.
+Unmanaged RAP scenarios.
+Draft-enabled business objects.
+Behavior definitions.
+Behavior implementation classes.
+Determinations.
+Validations.
+Actions and functions.
+Feature control.
+Authorization control.
+Locking.
+Numbering.
+EML usage.
+Transaction handling.
+RAP query providers.
+Custom entities.
+Error and message handling.
+RAP testing.
+RAP performance.
+RAP service exposure.
+
+Explain when to use managed versus unmanaged RAP.
+
+Provide complete examples showing how CDS entities, behavior definitions, behavior implementations, and service definitions work together.
+
+12. OData V2 and V4 Standards
+
+Create separate standards for OData V2 and OData V4.
+
+Cover:
+
+Preferred service protocol for new developments.
+OData V4 service bindings.
+OData V2 service artifacts.
+Service definitions.
+Service publication.
+Service versioning.
+Entity and property design.
+Actions and functions.
+Error responses.
+Pagination and filtering.
+Authorization.
+Service performance.
+API compatibility.
+Service documentation.
+Avoiding unnecessary custom Gateway implementations.
+
+Explain when OData V2 remains necessary for compatibility and when OData V4 is appropriate for new development.
+
+Do not assume that OData V4 is universally supported for every application or deployment model.
+
+13. SAP Fiori and User Experience Standards
+
+Define standards covering:
+
+Prefer SAP Fiori-based applications for supported business processes.
+Prefer standard SAP Fiori applications over unnecessary custom transactions.
+Use Fiori elements when the application fits its supported floorplans and capabilities.
+Use SAPUI5 freestyle applications when justified.
+Reuse standard Fiori components.
+Avoid unnecessary custom UI development.
+Consistent user experience.
+Responsive layouts.
+Accessibility.
+Error messages and user feedback.
+Authorization-aware UI behavior.
+Launchpad integration.
+Application navigation.
+UI and backend separation.
+Frontend performance.
+UI testing.
+Avoiding direct frontend access to sensitive backend data.
+
+Include a decision matrix for choosing between standard Fiori apps, Fiori elements, freestyle SAPUI5, and other supported SAP application options.
+
+T-code to Fiori Migration and Usage Policy
+
+Create a dedicated policy for replacing classic transaction-code-driven processes with SAP Fiori-based applications wherever suitable.
+
+Cover:
+
+Standard Fiori app availability assessment.
+Business process suitability.
+Fiori app identification and verification.
+Custom Fiori development where standard apps do not meet requirements.
+Role and authorization design.
+SAP GUI compatibility requirements.
+Handling transactions that remain necessary.
+Migration assessment for existing custom transactions.
+User training and adoption.
+Avoiding unnecessary duplication of standard SAP functionality.
+
+Do not state that every SAP GUI transaction has a Fiori equivalent.
+
+Explain how developers and solution architects should evaluate the available options before creating or retaining a custom transaction.
+
+PART VI — FILE HANDLING, INTEGRATION, AND OPERATIONS
+14. AL11 and Application Server File Handling
+
+Create a detailed organizational standard for file-based SAP developments.
+
+Use the following proposed directory structure as the starting point:
+
+/sys/<STREAM>/<WRICEF_ID>/<DATA_CATEGORY>/
+
+Example:
+
+/interface_dev/ds4/r2r/e0118/
+
+The intended logical structure is:
+
+data — input and working data files.
+archive — successfully processed or retained files.
+error — rejected files and files requiring correction.
+log — processing logs and diagnostic information.
+
+Provide a complete example:
+
+/interface_dev/ds4/r2r/e0118/data/
+
+/interface_dev/ds4/r2r/e0118/archive/
+
+/interface_dev/ds4/r2r/e0118/error/
+
+/interface_dev/ds4/r2r/e0118/log/
+
+This is a proposed example, not an existing McCormick production path.
+
+Important technical distinction
+
+AL11 is used to inspect application-server directories; it is not itself a file-storage service or a directory creation mechanism.
+
+Validate the proposed path structure against McCormick's actual SAP landscape, Basis standards, operating-system paths, and available application-server configuration.
+
+Do not assume that a developer can create arbitrary directories or that the same physical path is used across DS4, DS5, quality, and production systems.
+
+Create standards covering:
+
+Directory structure by system and environment.
+Business-stream and WRICEF ID organization.
+File category separation.
+Directory configuration and ownership.
+Avoiding hardcoded physical file paths.
+Use of approved logical file paths and directory configuration.
+Input file validation.
+File naming conventions.
+File encoding and character sets.
+File format validation.
+File size limits.
+File permissions.
+Preventing unauthorized file access.
+Atomic file processing.
+Duplicate file detection.
+Archive policy.
+Error file handling.
+Log file management.
+File retention and cleanup.
+Sensitive data protection.
+File processing recovery.
+Avoiding concurrent processing conflicts.
+File locking and synchronization.
+Application-server versus frontend file handling.
+Safe handling of external file paths.
+Operational monitoring.
+Environment-specific directory configuration.
+Avoiding unnecessary file copies.
+
+Explain how to handle files safely using supported ABAP file APIs and organizational Basis configuration.
+
+Include sample ABAP patterns for file processing, with appropriate error handling.
+
+Clearly distinguish between application-server files, frontend files, SAP content repositories, and cloud-compatible storage alternatives.
+
+15. Integration and API Standards
+
+Define standards covering:
+
+API-first development.
+Released SAP APIs.
+OData and REST integration.
+SOAP integration where required.
+IDoc usage where appropriate.
+Communication arrangements and scenarios.
+Authentication and authorization.
+Secure credential handling.
+Avoiding hardcoded credentials.
+Retry and timeout policies.
+Idempotency.
+Duplicate message handling.
+Error handling.
+Logging and monitoring.
+Integration testing.
+API versioning.
+Payload validation.
+Avoiding unnecessary synchronous dependencies.
+Secure data exchange.
+Integration documentation.
+
+Explain when to use OData, RAP-based APIs, IDocs, SOAP, or other supported integration technologies.
+
+PART VII — SECURITY, QUALITY, AND TESTING
+16. Security Standards
+
+Define standards covering:
+
+Authorization checks.
+CDS access controls.
+RAP authorization control.
+Avoiding hardcoded user IDs.
+Avoiding hardcoded passwords and secrets.
+Secure handling of personal and sensitive data.
+SQL injection prevention.
+Input validation.
+Output encoding where relevant.
+Secure file handling.
+Authentication and authorization separation.
+Avoiding unnecessary elevated privileges.
+Secure logging.
+Error messages that do not expose sensitive data.
+Secure API consumption.
+Security review requirements.
+
+Provide correct examples and explain common security mistakes.
+
+17. Error Handling, Logging, and Monitoring
+
+Define standards covering:
+
+Exception-based error handling.
+Avoiding silent error suppression.
+Avoiding empty exception handlers.
+Appropriate use of TRY...CATCH.
+Application log usage.
+Message class conventions.
+Structured error messages.
+User-friendly messages.
+Technical diagnostic information.
+Correlation identifiers for integrations.
+Log retention.
+Avoiding sensitive information in logs.
+Monitoring and operational support.
+Error recovery and reprocessing.
+
+Include examples for batch programs, file interfaces, RAP services, and integration processes.
+
+18. Testing and Code Quality
+
+Define standards covering:
+
+ABAP Unit.
+Unit testing business logic.
+Test data isolation.
+Test doubles.
+Dependency injection for testability.
+Positive test cases.
+Negative test cases.
+Boundary conditions.
+Authorization testing.
+Integration testing.
+RAP testing.
+CDS testing.
+Performance testing.
+Regression testing.
+Transport validation.
+Code review checklists.
+ATC checks.
+SCI and other applicable static analysis tools.
+Handling ATC findings.
+Documenting approved exceptions.
+
+Explain which checks should be mandatory before transport release and which depend on the development scenario.
+
+PART VIII — PERFORMANCE, TRANSPORTS, AND LIFECYCLE
+19. Performance and Scalability
+
+Define standards covering:
+
+Database performance.
+Internal table performance.
+Avoiding unnecessary data retrieval.
+Avoiding repeated calculations.
+Efficient pagination.
+Large file processing.
+Background processing.
+Avoiding unnecessary synchronous processing.
+Memory management.
+Performance measurement and profiling.
+
+Provide practical examples and explain how developers should validate performance rather than relying on assumptions.
+
+20. Transport and Deployment Governance
+
+Define standards covering:
+
+Transport request organization.
+Related-object transport completeness.
+Dependency management.
+Development-to-quality-to-production promotion.
+Transport sequencing.
+Transport documentation.
+Code review before release.
+ATC compliance.
+Handling emergency changes.
+Rollback and recovery planning.
+Avoiding direct production changes.
+Configuration and code separation.
+Environment-specific configuration.
+Deployment documentation.
+Post-deployment validation.
+
+Include relevant SAP S/4HANA and SAP BTP considerations.
+
+PART IX — DEVELOPMENT DOCUMENTATION AND GOVERNANCE
+21. Documentation Standards
+
+Define standards covering:
+
+Object-level documentation.
+Technical design documentation.
+Business requirements traceability.
+WRICEF documentation.
+Interface specifications.
+File processing documentation.
+API documentation.
+CDS and RAP documentation.
+Security documentation.
+Operational runbooks.
+Troubleshooting documentation.
+Naming convention references.
+Architecture decision records.
+Documentation maintenance.
+Developer onboarding.
+
+Explain what documentation is required for each type of development.
+
+22. Development Governance and Enforcement
+
+Create a practical governance framework covering:
+
+Developer responsibilities.
+Technical lead responsibilities.
+Architecture review.
+Code review.
+Naming compliance.
+Coding standards compliance.
+ATC enforcement.
+Exception approval.
+Security review.
+Performance review.
+Transport approval.
+Existing custom code assessment.
+Legacy code remediation.
+Standard updates.
+Periodic compliance assessment.
+
+Clearly distinguish mandatory governance gates from recommended review practices.
+
+PART X — REQUIRED DECISION MATRICES
+
+Include the following practical decision matrices.
+
+A. Extensibility Decision Matrix
+
+Compare:
+
+Standard SAP functionality
+Custom Fields and Logic (CFL)
+Cloud BAdIs
+RAP extensions
+Custom ABAP development
+Side-by-side extensions on SAP BTP
+
+For each, explain when it is appropriate, relevant limitations, and applicable Clean Core considerations.
+
+B. User Interface Decision Matrix
+
+Compare:
+
+Standard SAP Fiori applications
+Fiori elements
+Freestyle SAPUI5
+Classic SAP GUI transactions
+Custom applications
+
+Explain how to choose an appropriate approach based on business requirements and technical support.
+
+C. File Processing Decision Matrix
+
+Compare:
+
+Application-server files through approved AL11 directory configuration
+Frontend file uploads and downloads
+SAP content repositories
+Cloud-compatible storage
+API-based integrations
+
+Explain security, scalability, operational ownership, and applicable usage scenarios.
+
+D. Data Access Decision Matrix
+
+Compare:
+
+Open SQL
+CDS view entities
+RAP
+Released SAP APIs
+AMDP
+Other supported access mechanisms
+
+Explain when each should be used.
+
+E. Integration Decision Matrix
+
+Compare OData V2, OData V4, REST, SOAP, IDoc, and other relevant supported integration mechanisms.
+
+Explain compatibility, use cases, and limitations.
+
+PART XI — REQUIRED CODE EXAMPLES
+
+Provide a substantial collection of practical ABAP examples demonstrating:
+
+Modern ABAP syntax.
+Efficient internal table processing.
+Safe database access.
+CDS view entities.
+CDS access control.
+RAP behavior definitions.
+RAP behavior implementation classes.
+OData V4 service exposure.
+CFL-based extension.
+Cloud BAdI implementation.
+Application-server file processing.
+File validation and archiving.
+Exception handling.
+Application logging.
+ABAP Unit testing.
+Dependency injection.
+Authorization checks.
+Secure integration patterns.
+Performance-conscious database access.
+Clean Core-compliant extension design.
+
+For every example:
+
+Show the correct implementation.
+Explain the coding standard being demonstrated.
+Explain why the implementation is appropriate.
+Identify relevant limitations or prerequisites.
+Use realistic, consistent object names.
+Avoid presenting illustrative code as production-ready without necessary configuration and validation.
+
+Do not fabricate SAP APIs, classes, methods, released status, or technical capabilities.
+
+PART XII — FINAL DELIVERABLE
+
+Create a comprehensive organizational report titled:
+
+McCormick SAP S/4HANA Coding Standards and Development Best Practices
+
+The document must include:
+
+Cover page.
+Executive summary.
+Purpose and scope.
+Relationship to the naming convention document.
+Standard classification and applicability.
+At least 150 individually numbered standards.
+Detailed ABAP coding guidelines.
+Internal table and database standards.
+CDS and RAP standards.
+CFL and Cloud BAdI standards.
+OData V2/V4 standards.
+SAP Fiori and T-code migration standards.
+AL11 and file handling standards.
+Integration and API standards.
+Security standards.
+Testing and ATC standards.
+Performance standards.
+Transport and deployment governance.
+Documentation and operational standards.
+Decision matrices.
+Practical ABAP examples.
+Code review checklist.
+Developer compliance checklist.
+Governance and exception process.
+Glossary of SAP terminology.
+Authoritative references.
+Quick-reference coding standards cheat sheet.
+Formatting and Quality Requirements
+
+Use a formal, polished corporate documentation style suitable for McCormick SAP technical leadership.
+
+Use numbered sections, structured tables, practical examples, and diagrams wherever they improve clarity.
+
+Every standard must include:
+
+Standard ID.
+Standard title.
+Classification: Mandatory, Recommended, Conditional, or Deprecated.
+Description.
+Rationale.
+Implementation guidance.
+Example or verification method.
+Applicability and exceptions.
+
+Avoid unnecessary repetition and generic SAP tutorials.
+
+Do not artificially inflate the standard count by splitting one requirement into multiple trivial points.
+
+Ensure that the document is technically accurate, consistent with the naming convention document, and practical for developers to follow.
+
+Use authoritative SAP documentation to verify technical claims and cite sources next to relevant statements.
+
+The final document must be a proposed McCormick organizational standard, clearly distinguishing verified SAP requirements from proposed internal policies.
+
+Final objective: Produce a detailed, actionable development standards document that can be reviewed by McCormick SAP leadership and adopted as the common coding, extensibility, security, and governance framework for SAP S/4HANA development.
