@@ -1,37 +1,11 @@
-If you want it to look **modern and strong on a CV/LinkedIn**, I’d phrase the two roles like this:
+Hi Ramesh,
 
-### McCormick — SAP ABAP Developer
+As discussed, I’m attaching the requested documents related to the **Code Review Checklist (CRC)** and **Coding Standards** followed for McCormick development.
 
-**Role:** SAP ABAP Developer
-**Description:** Modern SAP S/4HANA development focused on **ABAP Cloud, RAP, CDS, Fiori, Clean Core, SAP BTP, and AI-powered developer tools**.
+* **Code Review Checklist (CRC):** Applicable at the individual WRICEF object level and covers the review points specific to each object.
+* **Coding Standards:** Generic development guidelines and standards applicable across WRICEF objects.
 
-**Top 10 Skills / Tech Stack**
+Please have a look and let me know if any additional documents or information are required.
 
-1. SAP S/4HANA
-2. ABAP Cloud
-3. RAP
-4. CDS / View Entities
-5. SAP Fiori & OData
-6. SAP BTP
-7. Clean Core
-8. Python & FastAPI
-9. MCP
-10. AI Integration / LLMs
-
-### EY — Associate Consultant – SAP ABAP
-
-**Role:** Associate Consultant – SAP ABAP
-**Description:** Delivered SAP S/4HANA solutions using **modern ABAP, HANA-native development, CDS, OData/Fiori, Adobe Forms, and API-based integrations** across multiple business processes.
-
-**Top 10 Skills / Tech Stack**
-
-1. SAP S/4HANA
-2. ABAP on HANA
-3. Object-Oriented ABAP
-4. CDS Views
-5. OData
-6. SAP Fiori
-7. Adobe Forms
-8. BAPIs / APIs
-9. HANA SQL
-10. WRICEF Development
+Regards,
+Kshitiz
