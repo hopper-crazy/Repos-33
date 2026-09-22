@@ -1,11 +1,16 @@
-Hi Ramesh,
+Hi Team,
 
-As discussed, I’m attaching the requested documents related to the **Code Review Checklist (CRC)** and **Coding Standards** followed for McCormick development.
+We are currently working on the **SPICE application** and need to establish connectivity with the SAP systems **DS4-010 and DS5-010**.
 
-* **Code Review Checklist (CRC):** Applicable at the individual WRICEF object level and covers the review points specific to each object.
-* **Coding Standards:** Generic development guidelines and standards applicable across WRICEF objects.
+Could you please assist **Thomas** with the required **system URLs, technical user details, and other necessary connectivity information** to configure the destinations?
 
-Please have a look and let me know if any additional documents or information are required.
+These destinations will be used by the application to connect to the SAP systems and retrieve the required **ABAP source code and ATC check results** for analysis.
 
-Regards,
+Since the application is intended to be accessible to all relevant users, we would prefer **application-level/technical-user authentication rather than individual user-level authentication**, subject to the recommended security approach.
+
+Could you please provide the required details at the earliest convenience? This connectivity is required for us to proceed with the next phase of development.
+
+Please let us know if you need any additional information from our side.
+
+Thanks & Regards,  
 Kshitiz
