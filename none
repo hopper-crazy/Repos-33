@@ -1,16 +1,18 @@
-Hi Team,
-
-We are currently working on the **SPICE application** and need to establish connectivity with the SAP systems **DS4-010 and DS5-010**.
-
-Could you please assist **Thomas** with the required **system URLs, technical user details, and other necessary connectivity information** to configure the destinations?
-
-These destinations will be used by the application to connect to the SAP systems and retrieve the required **ABAP source code and ATC check results** for analysis.
-
-Since the application is intended to be accessible to all relevant users, we would prefer **application-level/technical-user authentication rather than individual user-level authentication**, subject to the recommended security approach.
-
-Could you please provide the required details at the earliest convenience? This connectivity is required for us to proceed with the next phase of development.
-
-Please let us know if you need any additional information from our side.
-
-Thanks & Regards,  
-Kshitiz
+> Hi Omer,
+>
+> This requirement is related to the **SPICE application**, which performs automated analysis of SAP ABAP objects within a transport request.
+>
+> The OData V4 service **ZAPI_SPICE_REPOSITORY_M_SB_O4** is a custom read-only service created specifically for SPICE. It is used to retrieve limited SAP repository metadata required while processing transport objects, specifically:
+>
+> * **Program type** for an ABAP program.
+> * **Dependent includes** associated with an ABAP program.
+> * **Function group** associated with a function module.
+>
+> The service is only used to **read the required repository information** and does not perform any create, update, or delete operations in the SAP system.
+>
+> I have also attached the **complete SU53 screenshot** showing the authorization details, along with the **SPICE documentation** for reference, which provides further information about the application, its functionality, and the purpose of this service.
+>
+> Please let me know if any additional details or references are required from my side.
+>
+> Thanks,
+> Kshitiz
