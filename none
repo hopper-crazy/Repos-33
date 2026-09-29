@@ -1,18 +1,16 @@
-> Hi Omer,
->
-> This requirement is related to the **SPICE application**, which performs automated analysis of SAP ABAP objects within a transport request.
->
-> The OData V4 service **ZAPI_SPICE_REPOSITORY_M_SB_O4** is a custom read-only service created specifically for SPICE. It is used to retrieve limited SAP repository metadata required while processing transport objects, specifically:
->
-> * **Program type** for an ABAP program.
-> * **Dependent includes** associated with an ABAP program.
-> * **Function group** associated with a function module.
->
-> The service is only used to **read the required repository information** and does not perform any create, update, or delete operations in the SAP system.
->
-> I have also attached the **complete SU53 screenshot** showing the authorization details, along with the **SPICE documentation** for reference, which provides further information about the application, its functionality, and the purpose of this service.
->
-> Please let me know if any additional details or references are required from my side.
->
-> Thanks,
-> Kshitiz
+from sap_cloud_sdk.destination import create_client, DestinationHttpClient
+
+client = create_client(instance="default")
+
+destination = client.get_destination("DS4-010")
+
+http = DestinationHttpClient(destination)
+
+response = http.request(
+    "GET",
+    "/sap/bc/adt/api/atc/runs/csrf",
+    headers={"X-CSRF-Token": "Fetch"}
+)
+
+print(response.status_code)
+print(response.text)
