@@ -1,16 +1,554 @@
-from sap_cloud_sdk.destination import create_client, DestinationHttpClient
+Update the attached SPICE — SAP Program Inspection and Code Evaluation PDF while preserving its existing McCormick visual identity, professional enterprise layout, typography, spacing, page structure, red/navy/white color palette, and overall presentation quality.
 
-client = create_client(instance="default")
+IMPORTANT ARCHITECTURE CHANGE
 
-destination = client.get_destination("DS4-010")
+The current implementation has changed.
 
-http = DestinationHttpClient(destination)
+We will NOT use direct AI API keys anymore.
 
-response = http.request(
-    "GET",
-    "/sap/bc/adt/api/atc/runs/csrf",
-    headers={"X-CSRF-Token": "Fetch"}
-)
+SPICE will now use SAP AI Core on SAP BTP as the enterprise AI layer for LLM access, model deployment/management, authentication, and AI inference.
 
-print(response.status_code)
-print(response.text)
+Therefore, review the ENTIRE document and remove or rewrite every statement that says or implies:
+- AI API key
+- direct API-key-based AI authentication
+- Approved AI API
+- external AI service accessed using an API key
+- SAP AI Core is not part of Phase 1/current architecture
+- SAP AI Core is only a future capability
+
+Replace these references with the new SAP AI Core architecture.
+
+============================================================
+1. LOCATIONS THAT MUST BE UPDATED
+============================================================
+
+At minimum, update the following existing locations:
+
+PAGE 7 — End-to-End Technical Workflow
+
+Current Step 7 says:
+“FastAPI sends the prompt and data to McCormick's approved AI service using the API key.”
+
+Replace this with SAP AI Core based processing.
+
+The updated flow should conceptually be:
+
+1. Reviewer enters a transport request in React UI.
+2. React sends the request to FastAPI.
+3. FastAPI identifies relevant SAP transport objects.
+4. FastAPI retrieves metadata and source code through SAP ADT APIs.
+5. FastAPI retrieves ATC findings at the main-object level.
+6. FastAPI constructs the AI review request using review instructions, object metadata, ATC findings, and source code.
+7. FastAPI securely connects to SAP AI Core on SAP BTP using the configured service binding / enterprise authentication.
+8. SAP AI Core routes the request to the configured LLM deployment.
+9. The selected LLM analyzes the SAP code and returns structured review findings.
+10. FastAPI validates and merges the AI output with SAP evidence.
+11. FastAPI returns the transport-level response to React.
+12. React displays source code, ATC results, and AI review.
+
+Update the workflow diagram accordingly.
+
+------------------------------------------------------------
+
+PAGE 8 — Technical Architecture
+
+This page currently states:
+“SAP AI Core and RAG are not part of this architecture.”
+
+THIS IS NO LONGER CORRECT.
+
+Change the title/subtitle to indicate the current architecture includes SAP AI Core.
+
+Replace:
+“McCormick-Approved AI Service”
+
+with an architecture such as:
+
+AI LAYER
+SAP AI Core — SAP BTP
+
+Responsibilities:
+- Enterprise AI runtime and model access
+- Secure authentication through BTP service bindings
+- Centralized model deployment and configuration
+- Routing requests to approved foundation models
+- AI inference for SAP code review
+- Usage monitoring and governance capabilities
+
+Show the architecture approximately as:
+
+React Frontend
+      ↓
+Python + FastAPI Backend
+      ↓
+ ┌─────────────────────────────┐
+ │ SAP Integration             │
+ │ SAP ADT APIs + ATC          │
+ └─────────────────────────────┘
+      ↓
+AI Request Preparation
+      ↓
+SAP AI Core
+      ↓
+Configured Foundation Model
+      ↓
+Structured AI Review
+      ↓
+FastAPI Validation / Merge
+      ↓
+React UI
+
+SAP BTP should remain the deployment platform.
+
+RAG is still NOT part of the current implementation and should remain a future capability.
+
+Remove the statement:
+“API key is stored and used securely in the backend.”
+
+Replace it with wording explaining that SAP AI Core credentials/configuration are provided to the backend through approved SAP BTP service binding/environment configuration and must not be exposed to the React frontend.
+
+------------------------------------------------------------
+
+PAGE 14 — BTP Deployment & Connectivity Requirements
+
+Remove the entire “Secure AI API Key Configuration” requirement.
+
+Replace it with:
+
+SAP AI Core Service
+SPICE requires access to an SAP AI Core service instance on SAP BTP. The FastAPI backend connects to SAP AI Core using the approved BTP service binding and authentication mechanism. AI Core credentials and configuration remain server-side and are never exposed to the React frontend.
+
+Add requirements such as:
+- SAP AI Core service instance
+- Appropriate SAP AI Core entitlement
+- Service binding to the FastAPI application
+- AI Core resource group, if applicable
+- Configured model deployment
+- Required BTP roles/authorizations
+- DS4/DS5 destinations
+- Cloud Foundry Space / Space Developer permissions
+
+Update Expected Connectivity to:
+
+React UI
+→ FastAPI Backend
+→ SAP BTP Destinations
+→ DS4 / DS5
+
+and
+
+FastAPI Backend
+→ SAP AI Core
+→ Configured Foundation Model
+
+Remove the sentence saying that Phase 1 does not require SAP AI Core.
+
+------------------------------------------------------------
+
+PAGE 16 — Enterprise Readiness
+
+Replace:
+“Secure server-side API-key management”
+
+with something such as:
+“Secure SAP AI Core service binding and credential management”
+
+Add:
+- Model deployment governance
+- AI Core access controls
+- Token/usage monitoring
+- Model version management
+- Prompt and response logging policy
+- Source-code/data protection controls
+
+============================================================
+2. UPDATE THE PROJECT PHASES
+============================================================
+
+Because SAP AI Core is now part of the current architecture, the existing roadmap is outdated.
+
+Replace the existing roadmap with:
+
+PHASE 1 — CURRENT
+Core SPICE Review Platform
+
+React + FastAPI + SAP ADT/ATC + SAP AI Core
+
+Capabilities:
+- Transport processing
+- SAP object extraction
+- Source-code retrieval
+- ATC integration
+- AI-assisted ABAP code review
+- SAP AI Core integration
+- Structured JSON review output
+- Review UI
+- Human-led final review
+
+PHASE 2 — ENTERPRISE CONTEXT / RAG
+
+SAP HANA Cloud + RAG + Enterprise Knowledge
+
+Potential capabilities:
+- McCormick SAP coding standards
+- Internal development guidelines
+- Clean Core guidelines
+- Approved SAP documentation
+- Historical review findings
+- Reusable review knowledge
+- Context-aware AI recommendations
+
+PHASE 3 — DEVELOPMENT ASSISTANCE
+
+AI-Assisted Code Generation & Remediation
+
+Potential capabilities:
+- Suggested ABAP fixes
+- Code refactoring
+- Clean Core remediation
+- ABAP Cloud migration suggestions
+- Unit-test generation
+- Code generation from approved requirements
+- Human review before applying generated code
+
+PHASE 4 — DEVOPS AUTOMATION
+
+CI/CD + Automated Review Triggers
+
+Potential capabilities:
+- Automated review when transports/change sets reach defined stages
+- CI/CD integration
+- Quality gates
+- Automated SPICE analysis
+- Review history and auditability
+
+PHASE 5 — INTELLIGENT SAP ENGINEERING ASSISTANT
+
+AI Agents + Dependency Analysis + Conversational UX
+
+Potential capabilities:
+- Cross-object dependency analysis
+- Conversational SAP development assistance
+- Multi-step analysis
+- Developer feedback loops
+- Advanced AI-assisted engineering workflows
+
+Clearly label Phase 1 as current and Phases 2–5 as future opportunities.
+
+============================================================
+3. PAGE 4 — UPDATE BUSINESS IMPACT / SAVINGS
+============================================================
+
+The existing page currently estimates:
+
+1–2 hours saved per transport
+~40 transports/month
+40–80 reviewer hours reclaimed/month
+
+Increase this based on the updated target of approximately 150–180 hours per month.
+
+Use:
+
+TIME SAVED PER TRANSPORT
+~3.75–4.5 hours
+
+TRANSPORTS REVIEWED PER MONTH
+~40
+
+MONTHLY REVIEWER HOURS RECLAIMED
+~150–180 hours
+
+Calculation:
+
+40 transports × 3.75 hours = 150 hours/month
+40 transports × 4.5 hours = 180 hours/month
+
+Also show:
+
+ANNUALIZED POTENTIAL
+~1,800–2,160 reviewer hours/year
+
+Calculation:
+150 × 12 = 1,800 hours
+180 × 12 = 2,160 hours
+
+Clearly identify these figures as planning/pilot estimates rather than guaranteed realized savings.
+
+Update the pilot measurement section so the assumptions can be validated against actual production usage.
+
+============================================================
+4. ADD NEW PAGE — SAP AI CORE MODEL STRATEGY & COST ESTIMATE
+============================================================
+
+Add a professional new page after the architecture/AI section.
+
+Suggested title:
+
+SAP AI CORE — MODEL STRATEGY & ESTIMATED AI CONSUMPTION
+
+Explain that SAP AI Core is the orchestration/access layer and the actual inference cost depends on the foundation model selected, SAP commercial agreement, region, deployment configuration, and token consumption.
+
+Do NOT present unverified prices as fixed SAP contractual prices.
+
+Separate:
+1. Estimated token consumption
+2. Illustrative model inference cost
+3. SAP AI Core / BTP commercial considerations
+
+CURRENT USE CASE — CODE REVIEW
+
+SPICE currently sends the source code associated with a transport for AI-assisted review.
+
+Use a planning model based on approximately:
+
+40 transports/month
+
+Create LOW / TYPICAL / HIGH scenarios.
+
+For example:
+
+SMALL REVIEW
+Input: ~15,000 tokens
+Output: ~2,000 tokens
+Total: ~17,000 tokens / transport
+
+TYPICAL REVIEW
+Input: ~40,000 tokens
+Output: ~5,000 tokens
+Total: ~45,000 tokens / transport
+
+LARGE REVIEW
+Input: ~80,000 tokens
+Output: ~8,000 tokens
+Total: ~88,000 tokens / transport
+
+Monthly consumption at 40 transports:
+
+Small:
+~680,000 tokens/month
+
+Typical:
+~1.8 million tokens/month
+
+Large:
+~3.52 million tokens/month
+
+Clearly state that these are planning assumptions. Actual consumption must be measured after SAP AI Core integration because ABAP source size, number of objects, ATC findings, prompt size, model tokenizer, and generated response length vary by transport.
+
+IMPORTANT:
+If the application actually makes one AI request PER OBJECT rather than one request per transport, account for the repeated system prompt/schema/metadata overhead and explain that monthly token consumption can be higher.
+
+============================================================
+5. MODEL RECOMMENDATION — CURRENT CODE REVIEW
+============================================================
+
+Provide a model strategy rather than selecting the most expensive model by default.
+
+For the current SPICE use case — reviewing ABAP source code, ATC findings, Clean Core concerns, performance, security, maintainability, and returning structured JSON — recommend evaluating models available through the organization's SAP AI Core / generative AI hub environment.
+
+Use a tiered approach:
+
+PRIMARY / BALANCED MODEL
+A strong general-purpose coding/reasoning model with reliable structured-output capability.
+
+Use this for the majority of normal SPICE reviews.
+
+ADVANCED REASONING MODEL
+A higher-capability model for unusually large, complex, security-sensitive, or cross-object reviews.
+
+Use selectively because cost and latency may be higher.
+
+ECONOMY MODEL
+A lower-cost model can potentially be used for:
+- classification
+- summarization
+- simple code-quality checks
+- preprocessing
+- routing
+- low-complexity objects
+
+Do not hardcode a model name unless it is currently available in SAP AI Core / generative AI hub.
+
+If current model availability can be verified, provide example candidate models, clearly marking them as candidates rather than guaranteed availability.
+
+============================================================
+6. COST CALCULATION
+============================================================
+
+Create a transparent formula:
+
+Monthly AI Cost =
+(Input Tokens / 1,000,000 × Input Price per 1M Tokens)
++
+(Output Tokens / 1,000,000 × Output Price per 1M Tokens)
+
+Provide cost examples for the Small, Typical, and Large scenarios using CURRENT VERIFIED model pricing where reliable pricing is publicly available.
+
+Clearly distinguish:
+- model provider inference pricing
+- SAP AI Core / generative AI hub commercial arrangement
+- other BTP infrastructure/runtime costs
+
+Do not imply that public provider API pricing necessarily equals McCormick's effective SAP AI Core cost.
+
+Include a note:
+
+“Final enterprise cost must be validated against McCormick's SAP BTP contract, AI Units/entitlements, selected model, region, and SAP AI Core/generative AI hub commercial configuration.”
+
+============================================================
+7. FUTURE CODE GENERATION COST
+============================================================
+
+Add another section on the same page or a separate page:
+
+FUTURE PHASE — AI-ASSISTED CODE GENERATION
+
+Explain that code generation will generally require more reasoning/context and larger output than review-only workloads.
+
+Potential future inputs:
+- Functional requirement
+- Existing ABAP classes/programs
+- CDS definitions
+- APIs
+- coding standards through RAG
+- dependency information
+- existing implementation context
+- ATC/Clean Core requirements
+
+Potential outputs:
+- ABAP implementation
+- RAP artifacts
+- CDS views
+- behavior definitions
+- service definitions
+- unit tests
+- explanations/remediation
+
+Use a planning scenario such as:
+
+Typical code-generation request:
+Input: ~50,000 tokens
+Output: ~10,000–20,000 tokens
+
+Large contextual generation:
+Input: ~100,000+ tokens
+Output: ~20,000+ tokens
+
+Explain that the recommended future model should prioritize:
+- strong code generation
+- reasoning
+- long-context support
+- structured output
+- SAP/ABAP understanding
+- instruction following
+- security
+- enterprise availability through SAP AI Core
+
+Recommend a two-tier strategy:
+1. Cost-efficient model for normal review/simple generation.
+2. Higher-capability reasoning/coding model for complex generation and remediation.
+
+Include estimated per-run and monthly cost scenarios using verified current pricing, but label them as illustrative planning estimates.
+
+============================================================
+8. ADD A COST OPTIMIZATION SECTION
+============================================================
+
+Add a compact section explaining how SPICE can control AI consumption:
+
+- Do not resend unnecessary source code.
+- Review only relevant transport objects.
+- Deduplicate includes/components where possible.
+- Avoid sending identical ATC/context repeatedly.
+- Keep system instructions concise.
+- Set output-token limits.
+- Use structured JSON output.
+- Route simple reviews to a lower-cost model.
+- Route complex reviews to a stronger model.
+- Cache reusable context where technically and contractually appropriate.
+- Add token telemetry per transport/object.
+- Track input tokens, output tokens, model, latency, and estimated cost.
+
+Recommend that SPICE eventually capture:
+
+transport_request
+object_name
+model
+input_tokens
+output_tokens
+total_tokens
+latency
+estimated_cost
+timestamp
+
+This will allow McCormick to calculate the actual cost per transport rather than relying only on projections.
+
+============================================================
+9. DOCUMENT-WIDE CONSISTENCY
+============================================================
+
+After making these changes, review ALL pages for contradictions.
+
+The finished document must consistently communicate:
+
+CURRENT:
+React + FastAPI + SAP ADT/ATC + SAP AI Core + Foundation Model
+
+FUTURE:
+RAG / HANA Cloud → Code Generation → CI/CD Automation → Intelligent SAP Assistant
+
+There must be NO remaining statement that:
+- SAP AI Core is future-only
+- Phase 1 does not use SAP AI Core
+- SPICE uses a manually managed AI API key
+- direct API-key management is an architectural requirement
+
+Keep the existing human-governance message:
+AI findings assist reviewers; they do not automatically approve transports.
+
+============================================================
+10. DESIGN REQUIREMENTS
+============================================================
+
+Maintain the existing premium McCormick enterprise design.
+
+Use:
+- McCormick navy
+- McCormick red accents
+- white/off-white backgrounds
+- restrained light-blue panels
+- clean diagrams
+- professional tables
+- generous whitespace
+- consistent typography
+- existing header/footer treatment
+
+For the AI cost page, create a leadership-friendly visual layout containing:
+
+LEFT/TOP:
+Current Code Review
+
+CENTER:
+Token Consumption Scenarios
+
+RIGHT:
+Estimated Cost / Model Strategy
+
+BOTTOM:
+Future Code Generation + Cost Optimization
+
+Avoid making the page overly technical or crowded.
+
+The final document should be suitable for presentation to:
+- SAP Technical Leadership
+- Architecture
+- Governance
+- BTP Platform Team
+- Management
+
+Most importantly, clearly separate:
+CURRENT IMPLEMENTATION
+from
+FUTURE ROADMAP
+and
+ILLUSTRATIVE COST ASSUMPTIONS.
