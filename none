@@ -1,38 +1,21 @@
-Hi Prashant,
-
-The existing EDE Metrics report has six reporting scenarios:
-
-1. Inbound EDI Orders  
-2. All Orders  
-3. Outbound EDI Invoices  
-4. All Invoices  
-5. Inbound Alerts  
-6. Outbound Alerts  
-
-It also provides two output modes: **Detailed** and **Summary**.
-
-For all six scenarios, we should avoid using the Custom Entity approach unless it is required, considering the potential performance impact for high-volume reporting.
-
-For the following four scenarios, we can use **CDS with AMDP Table Functions**:
-
-- All Orders
-- Outbound EDI Invoices
-- All Invoices
-- Outbound Alerts
-
-For each of these RAP applications, we can add an **Output Type** parameter/dropdown with two values: **Detailed** and **Summary**.
-
-Based on the selected Output Type, the AMDP logic can either return the detailed records or perform the required deduplication and aggregation before returning the summary records. For the Summary output, we would retain the relevant grouping fields along with a **Count** column instead of returning all detailed-level fields.
-
-For **Outbound Alerts**, we can additionally use **Virtual Elements** for fields that require ABAP-side calculation, such as derived or formatted message text.
-
-The remaining two scenarios — **Inbound EDI Orders** and **Inbound Alerts** — require a different approach because the existing report also reads archived IDocs using SAP archive function modules. Since archived IDoc data cannot be accessed directly through CDS/AMDP, we would need to use **RAP Custom Entities with `IF_RAP_QUERY_PROVIDER`** for these scenarios.
-
-The same **Detailed/Summary** parameter can be handled in the query implementation. Based on the selected value, the query class can either return detailed records or perform the required deduplication and aggregation and return the summary output with the Count.
-
-The main concern with these two inbound reports is **data volume and performance**, particularly when historical/archived IDocs need to be read. Could you please help us confirm the expected data volume and historical reporting requirements with the functional team?
-
-Based on the expected volume, we can validate whether the Custom Entity approach will provide acceptable performance. If the volume is too high for an interactive RAP/Fiori implementation, we can evaluate retaining these inbound scenarios as **GUI-based reports** or consider an alternative approach for historical reporting.
-
-Thanks,  
-Kshitiz
+Module	Classic T-codes	Fiori area to investigate
+SD	VA05, VA05N	List / Manage Sales Orders
+SD	VA01, VA02, VA03	Create / Manage Sales Orders
+SD	VA21, VA22, VA23	Sales Quotations
+SD	VL01N, VL02N, VL03N	Outbound Deliveries
+SD	VL06O	Outbound Delivery Monitor
+SD	VF01, VF02, VF03	Billing Documents
+SD	VF04	Billing Due List
+MM	ME21N, ME22N, ME23N	Purchase Orders
+MM	ME51N, ME52N, ME53N	Purchase Requisitions
+MM	MIGO, MB51	Goods Movement / Material Documents
+MM	MM01, MM02, MM03	Product Master
+MM	MIRO, MIR4	Supplier Invoices
+FI	FB03, FB50, FB01	Journal Entries
+FI	FBL1N, FBL3N, FBL5N	Supplier, G/L, Customer Line Items
+FI	FS10N, FAGLB03	G/L Balances
+FI	F110	Automatic Payments
+FI	AS01, AS02, AS03	Fixed Asset Master
+PM	IW21, IW22, IW23	Maintenance Notifications
+PM	IW31, IW32, IW33	Maintenance Orders
+PM	IW38, IW39	Maintenance Order Lists
