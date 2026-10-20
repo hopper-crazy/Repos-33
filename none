@@ -1,21 +1,3 @@
-Module	Classic T-codes	Fiori area to investigate
-SD	VA05, VA05N	List / Manage Sales Orders
-SD	VA01, VA02, VA03	Create / Manage Sales Orders
-SD	VA21, VA22, VA23	Sales Quotations
-SD	VL01N, VL02N, VL03N	Outbound Deliveries
-SD	VL06O	Outbound Delivery Monitor
-SD	VF01, VF02, VF03	Billing Documents
-SD	VF04	Billing Due List
-MM	ME21N, ME22N, ME23N	Purchase Orders
-MM	ME51N, ME52N, ME53N	Purchase Requisitions
-MM	MIGO, MB51	Goods Movement / Material Documents
-MM	MM01, MM02, MM03	Product Master
-MM	MIRO, MIR4	Supplier Invoices
-FI	FB03, FB50, FB01	Journal Entries
-FI	FBL1N, FBL3N, FBL5N	Supplier, G/L, Customer Line Items
-FI	FS10N, FAGLB03	G/L Balances
-FI	F110	Automatic Payments
-FI	AS01, AS02, AS03	Fixed Asset Master
-PM	IW21, IW22, IW23	Maintenance Notifications
-PM	IW31, IW32, IW33	Maintenance Orders
-PM	IW38, IW39	Maintenance Order Lists
+The IDoc is failing with **status 60 (Syntax Error)** because custom segment `Z1EDL20` is present, but the extension is missing in the control record.
+
+We need to populate `EDIDC-CIMTYP = 'ZDELVRY3'` so SAP can recognize the segment. Since it works in DEV and Quality, we should compare the configurations with Production.
