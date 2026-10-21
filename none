@@ -1,3 +1,10 @@
-The IDoc is failing with **status 60 (Syntax Error)** because custom segment `Z1EDL20` is present, but the extension is missing in the control record.
-
-We need to populate `EDIDC-CIMTYP = 'ZDELVRY3'` so SAP can recognize the segment. Since it works in DEV and Quality, we should compare the configurations with Production.
+1) In CDS View, which annotation can be used to improve the performance of CDS it.
+2) What's VDM architecture and what're the type of data category?
+3) Suppose you've to sort the data in a custom CDS view how'll you do it with and without annotations? Are both the ways possible?
+4) How can we debug validations and substitutions in SAP GUI.
+5) If you've to create a RAP display report in which all the data will be coming from Function modules. and there's should be a custom action posting button for each line how'll you define it.
+6) Suppose, there's a business requirement that user want to upload a file from presentation server and it's a technical dependency that we can't run it in foreground mode. What should be the architecture of it as we can't read files from presentation server in bg mode.
+7) Convert the below into native SQL so that they can be used in AMDP:
+    DELETE ADJACENT DUPLICATES FROM lt_data COMPARING field1 field2.
+    MODIFY dbtab FROM TABLE it_tab.
+8)  Suppose you've added a custom field using CFL app and now you've to addd it in app. In Custom logic suppose that field is begin populated with SAP unreleased FM, how will you use it inside a Cloud BADI and now suppose you've to maintain the translatin for the field in UI how'll you do it and compare it with standard field
