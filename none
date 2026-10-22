@@ -1,22 +1,18 @@
-1. Which CDS annotations can improve performance? How would you optimize a CDS view with multiple joins and associations?
-2. Explain VDM architecture and analytical data categories.
-3. How would you sort data in a custom CDS view with and without annotations? Are both approaches possible?
-4. How would you debug validations and substitutions in SAP GUI.
-5. Suppose you need a RAP display application where all data comes from function modules, with a custom posting action for each record. How would you design it.
-6. Suppose users need to upload files from the presentation server, but processing must run entirely in the background. Since background jobs cannot access frontend files, how would you design the architecture?
-7. Convert the following ABAP statements into equivalent native SQLScript for AMDP, preserving their original behavior:
-   DELETE ADJACENT DUPLICATES FROM lt_data
-     COMPARING field1 field2.
+I am officially approving this development. Thank you for the detailed technical analysis and the proposed solution using the ZXA_CONTROL_TAB and ABAP enhancement.
 
-   MODIFY dbtab FROM TABLE it_tab.
-8. Suppose you've created a custom field using CFL and exposed it in a standard Fiori app. Its value comes from an unreleased SAP FM. How would you use it in a Cloud BAdI while maintaining Clean Core? How would you translate its label compared with a standard field?
-9. Suppose a table contains multiple status records for the same sales order item. How would you retrieve only the latest record per VBELN and POSNR using CDS and AMDP without ABAP-side processing? 
+I want to confirm for the record that this is the best and only viable solution. Standard UI5/Fiori extensibility is strictly limited to the presentation layer and cannot intercept backend transactional logic to control incompletion logs during a sales order save.
 
-VBELN	POSNR	STATUS	CHANGED_AT
-10001	10	A	10:00
-10001	10	B	11:00
-10001	10	C	12:00
-10001	20	A	09:00
-10001	20	B	13:00
+For our audit trail, here are the official SAP links supporting this architectural decision:
 
-10) Suppose your Node.js application needs to process a 5 GB CSV file. How would you handle it efficiently without loading the entire file into memory? What is the difference between callbacks, Promises, and async/await?
+SAP Fiori Architecture: Confirms core business logic must reside in the backend, not the UI5 app. 
+
+https://help.sap.com/docs/SAP_FIORI_OVERVIEW/4694bb95aacb4cdfa1327c6d8735eaad/f009e97dbcc94463aabfac350b09fcf5.html
+
+SAPUI5 Runtime Limits: Confirms UI5 apps cannot execute backend ABAP flow logic. 
+https://help.sap.com/docs/UI5_FLEXIBILITY
+
+SAP User Exits (MV45AFZZ): Confirms standard SAP uses this exit specifically for additional completion checks. 
+https://help.sap.com/saphelp_46c/helpdata/En/1c/f62c7dd435d1118b3f0060b03ca329/content.htm?no_cache=true
+
+Please proceed with the development as planned. Great work on the analysis.
+
