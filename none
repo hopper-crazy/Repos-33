@@ -1,10 +1,22 @@
-1) In CDS View, which annotation can be used to improve the performance of CDS it.
-2) What's VDM architecture and what're the type of data category?
-3) Suppose you've to sort the data in a custom CDS view how'll you do it with and without annotations? Are both the ways possible?
-4) How can we debug validations and substitutions in SAP GUI.
-5) If you've to create a RAP display report in which all the data will be coming from Function modules. and there's should be a custom action posting button for each line how'll you define it.
-6) Suppose, there's a business requirement that user want to upload a file from presentation server and it's a technical dependency that we can't run it in foreground mode. What should be the architecture of it as we can't read files from presentation server in bg mode.
-7) Convert the below into native SQL so that they can be used in AMDP:
-    DELETE ADJACENT DUPLICATES FROM lt_data COMPARING field1 field2.
-    MODIFY dbtab FROM TABLE it_tab.
-8)  Suppose you've added a custom field using CFL app and now you've to addd it in app. In Custom logic suppose that field is begin populated with SAP unreleased FM, how will you use it inside a Cloud BADI and now suppose you've to maintain the translatin for the field in UI how'll you do it and compare it with standard field
+1. Which CDS annotations can improve performance? How would you optimize a CDS view with multiple joins and associations?
+2. Explain VDM architecture and analytical data categories.
+3. How would you sort data in a custom CDS view with and without annotations? Are both approaches possible?
+4. How would you debug validations and substitutions in SAP GUI.
+5. Suppose you need a RAP display application where all data comes from function modules, with a custom posting action for each record. How would you design it.
+6. Suppose users need to upload files from the presentation server, but processing must run entirely in the background. Since background jobs cannot access frontend files, how would you design the architecture?
+7. Convert the following ABAP statements into equivalent native SQLScript for AMDP, preserving their original behavior:
+   DELETE ADJACENT DUPLICATES FROM lt_data
+     COMPARING field1 field2.
+
+   MODIFY dbtab FROM TABLE it_tab.
+8. Suppose you've created a custom field using CFL and exposed it in a standard Fiori app. Its value comes from an unreleased SAP FM. How would you use it in a Cloud BAdI while maintaining Clean Core? How would you translate its label compared with a standard field?
+9. Suppose a table contains multiple status records for the same sales order item. How would you retrieve only the latest record per VBELN and POSNR using CDS and AMDP without ABAP-side processing? 
+
+VBELN	POSNR	STATUS	CHANGED_AT
+10001	10	A	10:00
+10001	10	B	11:00
+10001	10	C	12:00
+10001	20	A	09:00
+10001	20	B	13:00
+
+10) Suppose your Node.js application needs to process a 5 GB CSV file. How would you handle it efficiently without loading the entire file into memory? What is the difference between callbacks, Promises, and async/await?
