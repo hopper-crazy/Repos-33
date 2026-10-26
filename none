@@ -1,293 +1,340 @@
 
-REPORT zdemo_abap2xlsx_download.
+REPORT zplm_excel_download.
 
-*---------------------------------------------------------------------*
-* 1. Internal table definition
-*---------------------------------------------------------------------*
-TYPES: BEGIN OF ty_employee,
-         emp_id     TYPE c LENGTH 10,
-         emp_name   TYPE c LENGTH 40,
-         department TYPE c LENGTH 30,
-         salary     TYPE p LENGTH 10 DECIMALS 2,
-         city       TYPE c LENGTH 30,
-       END OF ty_employee.
+*--------------------------------------------------------------------*
+* Field mapping - shared across all six tables
+*--------------------------------------------------------------------*
+TYPES: BEGIN OF ty_column,
+         fieldname TYPE fieldname,
+         header    TYPE string,
+         position  TYPE i,
+         width     TYPE i,
+       END OF ty_column.
 
-DATA: lt_employee TYPE STANDARD TABLE OF ty_employee,
-      ls_employee TYPE ty_employee.
+TYPES tt_columns TYPE STANDARD TABLE OF ty_column
+                 WITH DEFAULT KEY.
 
-*---------------------------------------------------------------------*
-* 2. Excel objects
-*---------------------------------------------------------------------*
-DATA: lo_excel       TYPE REF TO zcl_excel,
-      lo_worksheet   TYPE REF TO zcl_excel_worksheet,
-      lo_header      TYPE REF TO zcl_excel_style,
-      lo_data        TYPE REF TO zcl_excel_style,
-      lo_alternate   TYPE REF TO zcl_excel_style,
-      lo_border      TYPE REF TO zcl_excel_style_border,
-      lo_writer      TYPE REF TO zif_excel_writer.
+*--------------------------------------------------------------------*
+* Global Excel objects
+*--------------------------------------------------------------------*
+DATA: go_excel       TYPE REF TO zcl_excel,
+      go_sheet       TYPE REF TO zcl_excel_worksheet,
+      gv_sheet_count TYPE i.
 
-DATA: lv_header_guid TYPE zexcel_cell_style,
-      lv_data_guid   TYPE zexcel_cell_style,
-      lv_alt_guid    TYPE zexcel_cell_style,
-      lv_style_guid  TYPE zexcel_cell_style,
-      lv_row         TYPE i,
-      lv_xstring     TYPE xstring,
-      lt_binary      TYPE solix_tab,
-      lv_filename    TYPE string.
+DATA: gv_header_style TYPE zexcel_cell_style,
+      gv_normal_style TYPE zexcel_cell_style,
+      gv_alt_style    TYPE zexcel_cell_style.
 
-PARAMETERS: p_file TYPE rlgrap-filename
-            LOWER CASE
-            DEFAULT 'C:\Temp\Employee_Report.xlsx'.
+DATA: gt_columns TYPE tt_columns.
 
 START-OF-SELECTION.
 
-*---------------------------------------------------------------------*
-* 3. Prepare sample internal table
-*---------------------------------------------------------------------*
-  CLEAR ls_employee.
-  ls_employee-emp_id     = '1001'.
-  ls_employee-emp_name   = 'Rahul Sharma'.
-  ls_employee-department = 'IT'.
-  ls_employee-salary     = '65000'.
-  ls_employee-city       = 'Delhi'.
-  APPEND ls_employee TO lt_employee.
+  CREATE OBJECT go_excel.
 
-  CLEAR ls_employee.
-  ls_employee-emp_id     = '1002'.
-  ls_employee-emp_name   = 'Priya Verma'.
-  ls_employee-department = 'Finance'.
-  ls_employee-salary     = '72000'.
-  ls_employee-city       = 'Mumbai'.
-  APPEND ls_employee TO lt_employee.
+  PERFORM create_styles.
 
-  CLEAR ls_employee.
-  ls_employee-emp_id     = '1003'.
-  ls_employee-emp_name   = 'Amit Kumar'.
-  ls_employee-department = 'HR'.
-  ls_employee-salary     = '58000'.
-  ls_employee-city       = 'Pune'.
-  APPEND ls_employee TO lt_employee.
+*--------------------------------------------------------------------*
+* Example 1 - ESTRH header extraction
+* Replace this sample table with your actual extraction table
+*--------------------------------------------------------------------*
+  TYPES: BEGIN OF ty_head,
+           recn   TYPE estrh-recn,
+           subid  TYPE estrh-subid,
+           subcat TYPE estrh-subcat,
+           crdat  TYPE estrh-crdat,
+           upddat TYPE estrh-upddat,
+         END OF ty_head.
 
-  CLEAR ls_employee.
-  ls_employee-emp_id     = '1004'.
-  ls_employee-emp_name   = 'Neha Singh'.
-  ls_employee-department = 'IT'.
-  ls_employee-salary     = '81000'.
-  ls_employee-city       = 'Bangalore'.
-  APPEND ls_employee TO lt_employee.
+  DATA: lt_head TYPE STANDARD TABLE OF ty_head.
 
-  TRY.
+  " Here you would populate LT_HEAD using your PLM logic.
 
-*---------------------------------------------------------------------*
-* 4. Create workbook and worksheet
-*---------------------------------------------------------------------*
-      CREATE OBJECT lo_excel.
+  CLEAR gt_columns.
 
-      lo_worksheet = lo_excel->get_active_worksheet( ).
+  APPEND VALUE #(
+    fieldname = 'RECN'
+    header    = 'Specification Number'
+    position  = 1
+    width     = 24 ) TO gt_columns.
 
-      lo_worksheet->set_title(
-        ip_title = 'Employees'
-      ).
+  APPEND VALUE #(
+    fieldname = 'SUBID'
+    header    = 'Specification ID'
+    position  = 2
+    width     = 26 ) TO gt_columns.
 
-*---------------------------------------------------------------------*
-* 5. Create reusable cell border
-*---------------------------------------------------------------------*
-      CREATE OBJECT lo_border.
+  APPEND VALUE #(
+    fieldname = 'SUBCAT'
+    header    = 'Specification Category'
+    position  = 3
+    width     = 28 ) TO gt_columns.
 
-      lo_border->border_style =
-        zcl_excel_style_border=>c_border_thin.
+  APPEND VALUE #(
+    fieldname = 'CRDAT'
+    header    = 'Created On'
+    position  = 4
+    width     = 18 ) TO gt_columns.
 
-      lo_border->border_color-rgb = 'D8E1EB'.
+  APPEND VALUE #(
+    fieldname = 'UPDDAT'
+    header    = 'Changed On'
+    position  = 5
+    width     = 18 ) TO gt_columns.
 
-*---------------------------------------------------------------------*
-* 6. Header style: blue background, white bold font
-*---------------------------------------------------------------------*
-      lo_header = lo_excel->add_new_style( ).
+  PERFORM add_excel_sheet
+    USING 'Specification Header'
+          lt_head
+          gt_columns.
 
-      lo_header->fill->filltype =
-        zcl_excel_style_fill=>c_fill_solid.
+*--------------------------------------------------------------------*
+* Example 2 - Material assignments (ESTMJ)
+*--------------------------------------------------------------------*
+  TYPES: BEGIN OF ty_mat,
+           recnroot TYPE estmj-recnroot,
+           matnr    TYPE estmj-matnr,
+         END OF ty_mat.
 
-      lo_header->fill->fgcolor-rgb = '17365D'.
+  DATA: lt_material TYPE STANDARD TABLE OF ty_mat.
 
-      lo_header->font->bold = abap_true.
-      lo_header->font->color-rgb = 'FFFFFF'.
+  " Populate LT_MATERIAL using existing extraction logic.
 
-      lo_header->borders->allborders = lo_border.
+  CLEAR gt_columns.
 
-      lv_header_guid = lo_header->get_guid( ).
+  APPEND VALUE #(
+    fieldname = 'RECNROOT'
+    header    = 'Specification Number'
+    position  = 1
+    width     = 25 ) TO gt_columns.
 
-*---------------------------------------------------------------------*
-* 7. Normal data style
-*---------------------------------------------------------------------*
-      lo_data = lo_excel->add_new_style( ).
+  APPEND VALUE #(
+    fieldname = 'MATNR'
+    header    = 'Material Number'
+    position  = 2
+    width     = 25 ) TO gt_columns.
 
-      lo_data->borders->allborders = lo_border.
+  PERFORM add_excel_sheet
+    USING 'Material Assignments'
+          lt_material
+          gt_columns.
 
-      lv_data_guid = lo_data->get_guid( ).
+*--------------------------------------------------------------------*
+* Add the other four extraction tables in the same manner.
+*--------------------------------------------------------------------*
 
-*---------------------------------------------------------------------*
-* 8. Alternate row style
-*---------------------------------------------------------------------*
-      lo_alternate = lo_excel->add_new_style( ).
+  PERFORM download_excel.
 
-      lo_alternate->fill->filltype =
-        zcl_excel_style_fill=>c_fill_solid.
+*--------------------------------------------------------------------*
+* FORM CREATE_STYLES
+*--------------------------------------------------------------------*
+FORM create_styles.
 
-      lo_alternate->fill->fgcolor-rgb = 'EFF4FA'.
+  DATA: lo_style  TYPE REF TO zcl_excel_style,
+        lo_border TYPE REF TO zcl_excel_style_border.
 
-      lo_alternate->borders->allborders = lo_border.
+  CREATE OBJECT lo_border.
 
-      lv_alt_guid = lo_alternate->get_guid( ).
+  lo_border->border_style =
+    zcl_excel_style_border=>c_border_thin.
 
-*---------------------------------------------------------------------*
-* 9. Column headers - explicit order
-*---------------------------------------------------------------------*
-      lo_worksheet->set_cell(
-        ip_column = 'A'
-        ip_row    = 1
-        ip_value  = 'Employee ID'
-        ip_style  = lv_header_guid ).
+  lo_border->border_color-rgb = 'D9E2F3'.
 
-      lo_worksheet->set_cell(
-        ip_column = 'B'
-        ip_row    = 1
-        ip_value  = 'Employee Name'
-        ip_style  = lv_header_guid ).
+  " Header style
+  lo_style = go_excel->add_new_style( ).
 
-      lo_worksheet->set_cell(
-        ip_column = 'C'
-        ip_row    = 1
-        ip_value  = 'Department'
-        ip_style  = lv_header_guid ).
+  lo_style->fill->filltype =
+    zcl_excel_style_fill=>c_fill_solid.
 
-      lo_worksheet->set_cell(
-        ip_column = 'D'
-        ip_row    = 1
-        ip_value  = 'Salary'
-        ip_style  = lv_header_guid ).
+  lo_style->fill->fgcolor-rgb = '17365D'.
 
-      lo_worksheet->set_cell(
-        ip_column = 'E'
-        ip_row    = 1
-        ip_value  = 'City'
-        ip_style  = lv_header_guid ).
+  lo_style->font->bold = abap_true.
+  lo_style->font->color-rgb = 'FFFFFF'.
+  lo_style->font->size = 11.
 
-*---------------------------------------------------------------------*
-* 10. Set column widths and header height
-*---------------------------------------------------------------------*
-      lo_worksheet->set_column_width(
-        ip_column        = 'A'
-        ip_width_fix     = 18
-        ip_width_autosize = abap_false ).
+  lo_style->alignment->horizontal =
+    zcl_excel_style_alignment=>c_horizontal_center.
 
-      lo_worksheet->set_column_width(
-        ip_column        = 'B'
-        ip_width_fix     = 28
-        ip_width_autosize = abap_false ).
+  lo_style->alignment->vertical =
+    zcl_excel_style_alignment=>c_vertical_center.
 
-      lo_worksheet->set_column_width(
-        ip_column        = 'C'
-        ip_width_fix     = 22
-        ip_width_autosize = abap_false ).
+  lo_style->borders->allborders = lo_border.
 
-      lo_worksheet->set_column_width(
-        ip_column        = 'D'
-        ip_width_fix     = 18
-        ip_width_autosize = abap_false ).
+  gv_header_style = lo_style->get_guid( ).
 
-      lo_worksheet->set_column_width(
-        ip_column        = 'E'
-        ip_width_fix     = 22
-        ip_width_autosize = abap_false ).
+  " Normal row style
+  lo_style = go_excel->add_new_style( ).
 
-      lo_worksheet->set_row_height(
-        ip_row        = 1
-        ip_height_fix = 28 ).
+  lo_style->borders->allborders = lo_border.
 
-*---------------------------------------------------------------------*
-* 11. Populate Excel from internal table
-*---------------------------------------------------------------------*
-      lv_row = 2.
+  gv_normal_style = lo_style->get_guid( ).
 
-      LOOP AT lt_employee INTO ls_employee.
+  " Alternating row style
+  lo_style = go_excel->add_new_style( ).
 
-        IF lv_row MOD 2 = 0.
-          lv_style_guid = lv_data_guid.
-        ELSE.
-          lv_style_guid = lv_alt_guid.
-        ENDIF.
+  lo_style->fill->filltype =
+    zcl_excel_style_fill=>c_fill_solid.
 
-        lo_worksheet->set_cell(
-          ip_column = 'A'
-          ip_row    = lv_row
-          ip_value  = ls_employee-emp_id
-          ip_style  = lv_style_guid ).
+  lo_style->fill->fgcolor-rgb = 'EFF4FA'.
 
-        lo_worksheet->set_cell(
-          ip_column = 'B'
-          ip_row    = lv_row
-          ip_value  = ls_employee-emp_name
-          ip_style  = lv_style_guid ).
+  lo_style->borders->allborders = lo_border.
 
-        lo_worksheet->set_cell(
-          ip_column = 'C'
-          ip_row    = lv_row
-          ip_value  = ls_employee-department
-          ip_style  = lv_style_guid ).
+  gv_alt_style = lo_style->get_guid( ).
 
-        lo_worksheet->set_cell(
-          ip_column = 'D'
-          ip_row    = lv_row
-          ip_value  = ls_employee-salary
-          ip_style  = lv_style_guid ).
+ENDFORM.
 
-        lo_worksheet->set_cell(
-          ip_column = 'E'
-          ip_row    = lv_row
-          ip_value  = ls_employee-city
-          ip_style  = lv_style_guid ).
+*--------------------------------------------------------------------*
+* FORM ADD_EXCEL_SHEET
+* Works with any internal table containing structured rows.
+*--------------------------------------------------------------------*
+FORM add_excel_sheet
+  USING iv_sheet_name TYPE string
+        it_data       TYPE ANY TABLE
+        it_columns    TYPE tt_columns.
 
-        lv_row = lv_row + 1.
+  DATA: lt_columns TYPE tt_columns,
+        ls_column  TYPE ty_column,
+        lv_row     TYPE i,
+        lv_style   TYPE zexcel_cell_style,
+        lv_width   TYPE i.
 
-      ENDLOOP.
+  FIELD-SYMBOLS:
+    <ls_data> TYPE any,
+    <lv_value> TYPE any.
 
-*---------------------------------------------------------------------*
-* 12. Generate XLSX binary
-*---------------------------------------------------------------------*
-      CREATE OBJECT lo_writer TYPE zcl_excel_writer_2007.
+  " First worksheet is automatically created by ZCL_EXCEL.
+  IF gv_sheet_count = 0.
 
-      lv_xstring = lo_writer->write_file( lo_excel ).
+    go_sheet = go_excel->get_active_worksheet( ).
 
-      lt_binary = cl_bcs_convert=>xstring_to_solix(
-        iv_xstring = lv_xstring
-      ).
+  ELSE.
 
-*---------------------------------------------------------------------*
-* 13. Download to local computer
-*---------------------------------------------------------------------*
-      lv_filename = p_file.
+    go_sheet = go_excel->add_new_worksheet( ).
 
-      cl_gui_frontend_services=>gui_download(
-        EXPORTING
-          filename     = lv_filename
-          filetype     = 'BIN'
-          bin_filesize = xstrlen( lv_xstring )
-        CHANGING
-          data_tab     = lt_binary
-        EXCEPTIONS
-          OTHERS       = 1
-      ).
+  ENDIF.
 
-      IF sy-subrc = 0.
-        MESSAGE 'Excel downloaded successfully' TYPE 'S'.
-      ELSE.
-        MESSAGE 'Excel download failed' TYPE 'E'.
+  gv_sheet_count = gv_sheet_count + 1.
+
+  go_sheet->set_title(
+    ip_title = iv_sheet_name
+  ).
+
+  " Sort mapping by requested Excel position.
+  lt_columns = it_columns.
+
+  SORT lt_columns BY position.
+
+*--------------------------------------------------------------------*
+* Write custom headers and set column widths
+*--------------------------------------------------------------------*
+  LOOP AT lt_columns INTO ls_column.
+
+    IF ls_column-position <= 0.
+      MESSAGE 'Invalid Excel column position' TYPE 'E'.
+    ENDIF.
+
+    go_sheet->set_cell(
+      ip_column = ls_column-position
+      ip_row    = 1
+      ip_value  = ls_column-header
+      ip_style  = gv_header_style
+    ).
+
+    lv_width = ls_column-width.
+
+    IF lv_width <= 0.
+      lv_width = 22.
+    ENDIF.
+
+    go_sheet->set_column_width(
+      ip_column         = ls_column-position
+      ip_width_fix      = lv_width
+      ip_width_autosize = abap_false
+    ).
+
+  ENDLOOP.
+
+  go_sheet->set_row_height(
+    ip_row        = 1
+    ip_height_fix = 30
+  ).
+
+*--------------------------------------------------------------------*
+* Write all rows dynamically
+*--------------------------------------------------------------------*
+  lv_row = 2.
+
+  LOOP AT it_data ASSIGNING <ls_data>.
+
+    IF lv_row MOD 2 = 0.
+      lv_style = gv_normal_style.
+    ELSE.
+      lv_style = gv_alt_style.
+    ENDIF.
+
+    LOOP AT lt_columns INTO ls_column.
+
+      UNASSIGN <lv_value>.
+
+      ASSIGN COMPONENT ls_column-fieldname
+        OF STRUCTURE <ls_data>
+        TO <lv_value>.
+
+      IF sy-subrc <> 0.
+        MESSAGE |Field { ls_column-fieldname } not found|
+          TYPE 'E'.
       ENDIF.
 
-    CATCH zcx_excel INTO DATA(lo_error).
-      MESSAGE lo_error->get_text( ) TYPE 'E'.
+      go_sheet->set_cell(
+        ip_column = ls_column-position
+        ip_row    = lv_row
+        ip_value  = <lv_value>
+        ip_style  = lv_style
+      ).
 
-    CATCH cx_root INTO DATA(lo_exception).
-      MESSAGE lo_exception->get_text( ) TYPE 'E'.
+    ENDLOOP.
 
-  ENDTRY.
+    lv_row = lv_row + 1.
+
+  ENDLOOP.
+
+ENDFORM.
+
+*--------------------------------------------------------------------*
+* FORM DOWNLOAD_EXCEL
+*--------------------------------------------------------------------*
+FORM download_excel.
+
+  DATA: lo_writer    TYPE REF TO zif_excel_writer,
+        lv_xstring   TYPE xstring,
+        lt_binary    TYPE solix_tab,
+        lv_filename  TYPE string.
+
+  CREATE OBJECT lo_writer TYPE zcl_excel_writer_2007.
+
+  lv_xstring = lo_writer->write_file( go_excel ).
+
+  lt_binary = cl_bcs_convert=>xstring_to_solix(
+    iv_xstring = lv_xstring
+  ).
+
+  lv_filename = 'C:\Temp\PLM_Extraction.xlsx'.
+
+  cl_gui_frontend_services=>gui_download(
+    EXPORTING
+      filename     = lv_filename
+      filetype     = 'BIN'
+      bin_filesize = xstrlen( lv_xstring )
+    CHANGING
+      data_tab     = lt_binary
+    EXCEPTIONS
+      OTHERS       = 1
+  ).
+
+  IF sy-subrc = 0.
+    MESSAGE 'PLM Excel downloaded successfully'
+      TYPE 'S'.
+  ELSE.
+    MESSAGE 'Error downloading Excel file'
+      TYPE 'E'.
+  ENDIF.
+
+ENDFORM.
