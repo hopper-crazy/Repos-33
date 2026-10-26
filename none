@@ -1,18 +1,293 @@
-I am officially approving this development. Thank you for the detailed technical analysis and the proposed solution using the ZXA_CONTROL_TAB and ABAP enhancement.
 
-I want to confirm for the record that this is the best and only viable solution. Standard UI5/Fiori extensibility is strictly limited to the presentation layer and cannot intercept backend transactional logic to control incompletion logs during a sales order save.
+REPORT zdemo_abap2xlsx_download.
 
-For our audit trail, here are the official SAP links supporting this architectural decision:
+*---------------------------------------------------------------------*
+* 1. Internal table definition
+*---------------------------------------------------------------------*
+TYPES: BEGIN OF ty_employee,
+         emp_id     TYPE c LENGTH 10,
+         emp_name   TYPE c LENGTH 40,
+         department TYPE c LENGTH 30,
+         salary     TYPE p LENGTH 10 DECIMALS 2,
+         city       TYPE c LENGTH 30,
+       END OF ty_employee.
 
-SAP Fiori Architecture: Confirms core business logic must reside in the backend, not the UI5 app. 
+DATA: lt_employee TYPE STANDARD TABLE OF ty_employee,
+      ls_employee TYPE ty_employee.
 
-https://help.sap.com/docs/SAP_FIORI_OVERVIEW/4694bb95aacb4cdfa1327c6d8735eaad/f009e97dbcc94463aabfac350b09fcf5.html
+*---------------------------------------------------------------------*
+* 2. Excel objects
+*---------------------------------------------------------------------*
+DATA: lo_excel       TYPE REF TO zcl_excel,
+      lo_worksheet   TYPE REF TO zcl_excel_worksheet,
+      lo_header      TYPE REF TO zcl_excel_style,
+      lo_data        TYPE REF TO zcl_excel_style,
+      lo_alternate   TYPE REF TO zcl_excel_style,
+      lo_border      TYPE REF TO zcl_excel_style_border,
+      lo_writer      TYPE REF TO zif_excel_writer.
 
-SAPUI5 Runtime Limits: Confirms UI5 apps cannot execute backend ABAP flow logic. 
-https://help.sap.com/docs/UI5_FLEXIBILITY
+DATA: lv_header_guid TYPE zexcel_cell_style,
+      lv_data_guid   TYPE zexcel_cell_style,
+      lv_alt_guid    TYPE zexcel_cell_style,
+      lv_style_guid  TYPE zexcel_cell_style,
+      lv_row         TYPE i,
+      lv_xstring     TYPE xstring,
+      lt_binary      TYPE solix_tab,
+      lv_filename    TYPE string.
 
-SAP User Exits (MV45AFZZ): Confirms standard SAP uses this exit specifically for additional completion checks. 
-https://help.sap.com/saphelp_46c/helpdata/En/1c/f62c7dd435d1118b3f0060b03ca329/content.htm?no_cache=true
+PARAMETERS: p_file TYPE rlgrap-filename
+            LOWER CASE
+            DEFAULT 'C:\Temp\Employee_Report.xlsx'.
 
-Please proceed with the development as planned. Great work on the analysis.
+START-OF-SELECTION.
 
+*---------------------------------------------------------------------*
+* 3. Prepare sample internal table
+*---------------------------------------------------------------------*
+  CLEAR ls_employee.
+  ls_employee-emp_id     = '1001'.
+  ls_employee-emp_name   = 'Rahul Sharma'.
+  ls_employee-department = 'IT'.
+  ls_employee-salary     = '65000'.
+  ls_employee-city       = 'Delhi'.
+  APPEND ls_employee TO lt_employee.
+
+  CLEAR ls_employee.
+  ls_employee-emp_id     = '1002'.
+  ls_employee-emp_name   = 'Priya Verma'.
+  ls_employee-department = 'Finance'.
+  ls_employee-salary     = '72000'.
+  ls_employee-city       = 'Mumbai'.
+  APPEND ls_employee TO lt_employee.
+
+  CLEAR ls_employee.
+  ls_employee-emp_id     = '1003'.
+  ls_employee-emp_name   = 'Amit Kumar'.
+  ls_employee-department = 'HR'.
+  ls_employee-salary     = '58000'.
+  ls_employee-city       = 'Pune'.
+  APPEND ls_employee TO lt_employee.
+
+  CLEAR ls_employee.
+  ls_employee-emp_id     = '1004'.
+  ls_employee-emp_name   = 'Neha Singh'.
+  ls_employee-department = 'IT'.
+  ls_employee-salary     = '81000'.
+  ls_employee-city       = 'Bangalore'.
+  APPEND ls_employee TO lt_employee.
+
+  TRY.
+
+*---------------------------------------------------------------------*
+* 4. Create workbook and worksheet
+*---------------------------------------------------------------------*
+      CREATE OBJECT lo_excel.
+
+      lo_worksheet = lo_excel->get_active_worksheet( ).
+
+      lo_worksheet->set_title(
+        ip_title = 'Employees'
+      ).
+
+*---------------------------------------------------------------------*
+* 5. Create reusable cell border
+*---------------------------------------------------------------------*
+      CREATE OBJECT lo_border.
+
+      lo_border->border_style =
+        zcl_excel_style_border=>c_border_thin.
+
+      lo_border->border_color-rgb = 'D8E1EB'.
+
+*---------------------------------------------------------------------*
+* 6. Header style: blue background, white bold font
+*---------------------------------------------------------------------*
+      lo_header = lo_excel->add_new_style( ).
+
+      lo_header->fill->filltype =
+        zcl_excel_style_fill=>c_fill_solid.
+
+      lo_header->fill->fgcolor-rgb = '17365D'.
+
+      lo_header->font->bold = abap_true.
+      lo_header->font->color-rgb = 'FFFFFF'.
+
+      lo_header->borders->allborders = lo_border.
+
+      lv_header_guid = lo_header->get_guid( ).
+
+*---------------------------------------------------------------------*
+* 7. Normal data style
+*---------------------------------------------------------------------*
+      lo_data = lo_excel->add_new_style( ).
+
+      lo_data->borders->allborders = lo_border.
+
+      lv_data_guid = lo_data->get_guid( ).
+
+*---------------------------------------------------------------------*
+* 8. Alternate row style
+*---------------------------------------------------------------------*
+      lo_alternate = lo_excel->add_new_style( ).
+
+      lo_alternate->fill->filltype =
+        zcl_excel_style_fill=>c_fill_solid.
+
+      lo_alternate->fill->fgcolor-rgb = 'EFF4FA'.
+
+      lo_alternate->borders->allborders = lo_border.
+
+      lv_alt_guid = lo_alternate->get_guid( ).
+
+*---------------------------------------------------------------------*
+* 9. Column headers - explicit order
+*---------------------------------------------------------------------*
+      lo_worksheet->set_cell(
+        ip_column = 'A'
+        ip_row    = 1
+        ip_value  = 'Employee ID'
+        ip_style  = lv_header_guid ).
+
+      lo_worksheet->set_cell(
+        ip_column = 'B'
+        ip_row    = 1
+        ip_value  = 'Employee Name'
+        ip_style  = lv_header_guid ).
+
+      lo_worksheet->set_cell(
+        ip_column = 'C'
+        ip_row    = 1
+        ip_value  = 'Department'
+        ip_style  = lv_header_guid ).
+
+      lo_worksheet->set_cell(
+        ip_column = 'D'
+        ip_row    = 1
+        ip_value  = 'Salary'
+        ip_style  = lv_header_guid ).
+
+      lo_worksheet->set_cell(
+        ip_column = 'E'
+        ip_row    = 1
+        ip_value  = 'City'
+        ip_style  = lv_header_guid ).
+
+*---------------------------------------------------------------------*
+* 10. Set column widths and header height
+*---------------------------------------------------------------------*
+      lo_worksheet->set_column_width(
+        ip_column        = 'A'
+        ip_width_fix     = 18
+        ip_width_autosize = abap_false ).
+
+      lo_worksheet->set_column_width(
+        ip_column        = 'B'
+        ip_width_fix     = 28
+        ip_width_autosize = abap_false ).
+
+      lo_worksheet->set_column_width(
+        ip_column        = 'C'
+        ip_width_fix     = 22
+        ip_width_autosize = abap_false ).
+
+      lo_worksheet->set_column_width(
+        ip_column        = 'D'
+        ip_width_fix     = 18
+        ip_width_autosize = abap_false ).
+
+      lo_worksheet->set_column_width(
+        ip_column        = 'E'
+        ip_width_fix     = 22
+        ip_width_autosize = abap_false ).
+
+      lo_worksheet->set_row_height(
+        ip_row        = 1
+        ip_height_fix = 28 ).
+
+*---------------------------------------------------------------------*
+* 11. Populate Excel from internal table
+*---------------------------------------------------------------------*
+      lv_row = 2.
+
+      LOOP AT lt_employee INTO ls_employee.
+
+        IF lv_row MOD 2 = 0.
+          lv_style_guid = lv_data_guid.
+        ELSE.
+          lv_style_guid = lv_alt_guid.
+        ENDIF.
+
+        lo_worksheet->set_cell(
+          ip_column = 'A'
+          ip_row    = lv_row
+          ip_value  = ls_employee-emp_id
+          ip_style  = lv_style_guid ).
+
+        lo_worksheet->set_cell(
+          ip_column = 'B'
+          ip_row    = lv_row
+          ip_value  = ls_employee-emp_name
+          ip_style  = lv_style_guid ).
+
+        lo_worksheet->set_cell(
+          ip_column = 'C'
+          ip_row    = lv_row
+          ip_value  = ls_employee-department
+          ip_style  = lv_style_guid ).
+
+        lo_worksheet->set_cell(
+          ip_column = 'D'
+          ip_row    = lv_row
+          ip_value  = ls_employee-salary
+          ip_style  = lv_style_guid ).
+
+        lo_worksheet->set_cell(
+          ip_column = 'E'
+          ip_row    = lv_row
+          ip_value  = ls_employee-city
+          ip_style  = lv_style_guid ).
+
+        lv_row = lv_row + 1.
+
+      ENDLOOP.
+
+*---------------------------------------------------------------------*
+* 12. Generate XLSX binary
+*---------------------------------------------------------------------*
+      CREATE OBJECT lo_writer TYPE zcl_excel_writer_2007.
+
+      lv_xstring = lo_writer->write_file( lo_excel ).
+
+      lt_binary = cl_bcs_convert=>xstring_to_solix(
+        iv_xstring = lv_xstring
+      ).
+
+*---------------------------------------------------------------------*
+* 13. Download to local computer
+*---------------------------------------------------------------------*
+      lv_filename = p_file.
+
+      cl_gui_frontend_services=>gui_download(
+        EXPORTING
+          filename     = lv_filename
+          filetype     = 'BIN'
+          bin_filesize = xstrlen( lv_xstring )
+        CHANGING
+          data_tab     = lt_binary
+        EXCEPTIONS
+          OTHERS       = 1
+      ).
+
+      IF sy-subrc = 0.
+        MESSAGE 'Excel downloaded successfully' TYPE 'S'.
+      ELSE.
+        MESSAGE 'Excel download failed' TYPE 'E'.
+      ENDIF.
+
+    CATCH zcx_excel INTO DATA(lo_error).
+      MESSAGE lo_error->get_text( ) TYPE 'E'.
+
+    CATCH cx_root INTO DATA(lo_exception).
+      MESSAGE lo_exception->get_text( ) TYPE 'E'.
+
+  ENDTRY.
