@@ -1,340 +1,60 @@
-
-REPORT zplm_excel_download.
-
-*--------------------------------------------------------------------*
-* Field mapping - shared across all six tables
-*--------------------------------------------------------------------*
-TYPES: BEGIN OF ty_column,
-         fieldname TYPE fieldname,
-         header    TYPE string,
-         position  TYPE i,
-         width     TYPE i,
-       END OF ty_column.
-
-TYPES tt_columns TYPE STANDARD TABLE OF ty_column
-                 WITH DEFAULT KEY.
-
-*--------------------------------------------------------------------*
-* Global Excel objects
-*--------------------------------------------------------------------*
-DATA: go_excel       TYPE REF TO zcl_excel,
-      go_sheet       TYPE REF TO zcl_excel_worksheet,
-      gv_sheet_count TYPE i.
-
-DATA: gv_header_style TYPE zexcel_cell_style,
-      gv_normal_style TYPE zexcel_cell_style,
-      gv_alt_style    TYPE zexcel_cell_style.
-
-DATA: gt_columns TYPE tt_columns.
-
-START-OF-SELECTION.
-
-  CREATE OBJECT go_excel.
-
-  PERFORM create_styles.
-
-*--------------------------------------------------------------------*
-* Example 1 - ESTRH header extraction
-* Replace this sample table with your actual extraction table
-*--------------------------------------------------------------------*
-  TYPES: BEGIN OF ty_head,
-           recn   TYPE estrh-recn,
-           subid  TYPE estrh-subid,
-           subcat TYPE estrh-subcat,
-           crdat  TYPE estrh-crdat,
-           upddat TYPE estrh-upddat,
-         END OF ty_head.
-
-  DATA: lt_head TYPE STANDARD TABLE OF ty_head.
-
-  " Here you would populate LT_HEAD using your PLM logic.
-
-  CLEAR gt_columns.
-
-  APPEND VALUE #(
-    fieldname = 'RECN'
-    header    = 'Specification Number'
-    position  = 1
-    width     = 24 ) TO gt_columns.
-
-  APPEND VALUE #(
-    fieldname = 'SUBID'
-    header    = 'Specification ID'
-    position  = 2
-    width     = 26 ) TO gt_columns.
-
-  APPEND VALUE #(
-    fieldname = 'SUBCAT'
-    header    = 'Specification Category'
-    position  = 3
-    width     = 28 ) TO gt_columns.
-
-  APPEND VALUE #(
-    fieldname = 'CRDAT'
-    header    = 'Created On'
-    position  = 4
-    width     = 18 ) TO gt_columns.
-
-  APPEND VALUE #(
-    fieldname = 'UPDDAT'
-    header    = 'Changed On'
-    position  = 5
-    width     = 18 ) TO gt_columns.
-
-  PERFORM add_excel_sheet
-    USING 'Specification Header'
-          lt_head
-          gt_columns.
-
-*--------------------------------------------------------------------*
-* Example 2 - Material assignments (ESTMJ)
-*--------------------------------------------------------------------*
-  TYPES: BEGIN OF ty_mat,
-           recnroot TYPE estmj-recnroot,
-           matnr    TYPE estmj-matnr,
-         END OF ty_mat.
-
-  DATA: lt_material TYPE STANDARD TABLE OF ty_mat.
-
-  " Populate LT_MATERIAL using existing extraction logic.
-
-  CLEAR gt_columns.
-
-  APPEND VALUE #(
-    fieldname = 'RECNROOT'
-    header    = 'Specification Number'
-    position  = 1
-    width     = 25 ) TO gt_columns.
-
-  APPEND VALUE #(
-    fieldname = 'MATNR'
-    header    = 'Material Number'
-    position  = 2
-    width     = 25 ) TO gt_columns.
-
-  PERFORM add_excel_sheet
-    USING 'Material Assignments'
-          lt_material
-          gt_columns.
-
-*--------------------------------------------------------------------*
-* Add the other four extraction tables in the same manner.
-*--------------------------------------------------------------------*
-
-  PERFORM download_excel.
-
-*--------------------------------------------------------------------*
-* FORM CREATE_STYLES
-*--------------------------------------------------------------------*
-FORM create_styles.
-
-  DATA: lo_style  TYPE REF TO zcl_excel_style,
-        lo_border TYPE REF TO zcl_excel_style_border.
-
-  CREATE OBJECT lo_border.
-
-  lo_border->border_style =
-    zcl_excel_style_border=>c_border_thin.
-
-  lo_border->border_color-rgb = 'D9E2F3'.
-
-  " Header style
-  lo_style = go_excel->add_new_style( ).
-
-  lo_style->fill->filltype =
-    zcl_excel_style_fill=>c_fill_solid.
-
-  lo_style->fill->fgcolor-rgb = '17365D'.
-
-  lo_style->font->bold = abap_true.
-  lo_style->font->color-rgb = 'FFFFFF'.
-  lo_style->font->size = 11.
-
-  lo_style->alignment->horizontal =
-    zcl_excel_style_alignment=>c_horizontal_center.
-
-  lo_style->alignment->vertical =
-    zcl_excel_style_alignment=>c_vertical_center.
-
-  lo_style->borders->allborders = lo_border.
-
-  gv_header_style = lo_style->get_guid( ).
-
-  " Normal row style
-  lo_style = go_excel->add_new_style( ).
-
-  lo_style->borders->allborders = lo_border.
-
-  gv_normal_style = lo_style->get_guid( ).
-
-  " Alternating row style
-  lo_style = go_excel->add_new_style( ).
-
-  lo_style->fill->filltype =
-    zcl_excel_style_fill=>c_fill_solid.
-
-  lo_style->fill->fgcolor-rgb = 'EFF4FA'.
-
-  lo_style->borders->allborders = lo_border.
-
-  gv_alt_style = lo_style->get_guid( ).
-
-ENDFORM.
-
-*--------------------------------------------------------------------*
-* FORM ADD_EXCEL_SHEET
-* Works with any internal table containing structured rows.
-*--------------------------------------------------------------------*
-FORM add_excel_sheet
-  USING iv_sheet_name TYPE string
-        it_data       TYPE ANY TABLE
-        it_columns    TYPE tt_columns.
-
-  DATA: lt_columns TYPE tt_columns,
-        ls_column  TYPE ty_column,
-        lv_row     TYPE i,
-        lv_style   TYPE zexcel_cell_style,
-        lv_width   TYPE i.
-
-  FIELD-SYMBOLS:
-    <ls_data> TYPE any,
-    <lv_value> TYPE any.
-
-  " First worksheet is automatically created by ZCL_EXCEL.
-  IF gv_sheet_count = 0.
-
-    go_sheet = go_excel->get_active_worksheet( ).
-
-  ELSE.
-
-    go_sheet = go_excel->add_new_worksheet( ).
-
-  ENDIF.
-
-  gv_sheet_count = gv_sheet_count + 1.
-
-  go_sheet->set_title(
-    ip_title = iv_sheet_name
-  ).
-
-  " Sort mapping by requested Excel position.
-  lt_columns = it_columns.
-
-  SORT lt_columns BY position.
-
-*--------------------------------------------------------------------*
-* Write custom headers and set column widths
-*--------------------------------------------------------------------*
-  LOOP AT lt_columns INTO ls_column.
-
-    IF ls_column-position <= 0.
-      MESSAGE 'Invalid Excel column position' TYPE 'E'.
-    ENDIF.
-
-    go_sheet->set_cell(
-      ip_column = ls_column-position
-      ip_row    = 1
-      ip_value  = ls_column-header
-      ip_style  = gv_header_style
-    ).
-
-    lv_width = ls_column-width.
-
-    IF lv_width <= 0.
-      lv_width = 22.
-    ENDIF.
-
-    go_sheet->set_column_width(
-      ip_column         = ls_column-position
-      ip_width_fix      = lv_width
-      ip_width_autosize = abap_false
-    ).
-
-  ENDLOOP.
-
-  go_sheet->set_row_height(
-    ip_row        = 1
-    ip_height_fix = 30
-  ).
-
-*--------------------------------------------------------------------*
-* Write all rows dynamically
-*--------------------------------------------------------------------*
-  lv_row = 2.
-
-  LOOP AT it_data ASSIGNING <ls_data>.
-
-    IF lv_row MOD 2 = 0.
-      lv_style = gv_normal_style.
-    ELSE.
-      lv_style = gv_alt_style.
-    ENDIF.
-
-    LOOP AT lt_columns INTO ls_column.
-
-      UNASSIGN <lv_value>.
-
-      ASSIGN COMPONENT ls_column-fieldname
-        OF STRUCTURE <ls_data>
-        TO <lv_value>.
-
-      IF sy-subrc <> 0.
-        MESSAGE |Field { ls_column-fieldname } not found|
-          TYPE 'E'.
-      ENDIF.
-
-      go_sheet->set_cell(
-        ip_column = ls_column-position
-        ip_row    = lv_row
-        ip_value  = <lv_value>
-        ip_style  = lv_style
-      ).
-
-    ENDLOOP.
-
-    lv_row = lv_row + 1.
-
-  ENDLOOP.
-
-ENDFORM.
-
-*--------------------------------------------------------------------*
-* FORM DOWNLOAD_EXCEL
-*--------------------------------------------------------------------*
-FORM download_excel.
-
-  DATA: lo_writer    TYPE REF TO zif_excel_writer,
-        lv_xstring   TYPE xstring,
-        lt_binary    TYPE solix_tab,
-        lv_filename  TYPE string.
-
-  CREATE OBJECT lo_writer TYPE zcl_excel_writer_2007.
-
-  lv_xstring = lo_writer->write_file( go_excel ).
-
-  lt_binary = cl_bcs_convert=>xstring_to_solix(
-    iv_xstring = lv_xstring
-  ).
-
-  lv_filename = 'C:\Temp\PLM_Extraction.xlsx'.
-
-  cl_gui_frontend_services=>gui_download(
-    EXPORTING
-      filename     = lv_filename
-      filetype     = 'BIN'
-      bin_filesize = xstrlen( lv_xstring )
-    CHANGING
-      data_tab     = lt_binary
-    EXCEPTIONS
-      OTHERS       = 1
-  ).
-
-  IF sy-subrc = 0.
-    MESSAGE 'PLM Excel downloaded successfully'
-      TYPE 'S'.
-  ELSE.
-    MESSAGE 'Error downloading Excel file'
-      TYPE 'E'.
-  ENDIF.
-
-ENDFORM.
+Based on your contributions at McCormick, I've drafted employee self-evaluation comments for all three FY26 goals. The language is professional, achievement-oriented, and suitable for SAP SuccessFactors.
+
+I've emphasized your contributions to SAP governance, internal ABAP development, code quality, AI innovation, performance optimization, and the Project LEO implementation, while avoiding claims that you independently delivered activities owned by Accenture.
+
+## Goal 1: TI Performance – Technology Modernization, Cybersecurity & Intelligent Operations
+
+- **SAP Development Governance:** Strengthened internal SAP development governance by reviewing 30+ defects and technical issues, evaluating proposed solutions, and recommending improvements aligned with SAP development best practices, maintainability, and system performance.
+- **Technology Modernization:** Analyzed the S/4HANA landscape and prepared a technical assessment highlighting potential improvement opportunities, optimization areas, and recommendations to enhance system efficiency and long-term maintainability.
+- **Performance Optimization:** Worked on optimizing large-volume SAP data extraction and processing reports using ABAP Managed Database Procedures (AMDP), focusing on database-level processing and improved execution efficiency.
+- **Development Standards:** Established and documented SAP ABAP naming conventions, company-specific development standards, and ECC coding guidelines to promote consistency, code quality, and maintainability across development activities.
+- **Intelligent Operations & Automation:** Developed a prototype SAP Integration Suite monitoring dashboard to improve visibility into integration message processing logs, operational monitoring, and troubleshooting capabilities.
+- **AI-Driven Innovation:** Developed SPICE, an AI-powered SAP ABAP code review application leveraging SAP AI Core on SAP BTP, exploring opportunities to automate code quality assessments, identify potential issues, and support development governance.
+- **Process Improvement:** Developed a WRICEF effort analysis tracker to support structured effort estimation, development planning, and improved visibility into technical delivery requirements.
+
+## Goal 2: LEO Performance – Deliver R8NA Releases & Special Projects
+
+- **Internal Development Delivery:** Completed three SAP development tasks supporting business requirements and ongoing operational needs:
+  - Spend HQ Report Analysis
+  - EMEA Purchase Order Terms & Conditions Update
+  - Project Laredo – 3PL IDoc Development
+- **Implementation Governance:** Supported the Project LEO SAP implementation from an internal technical governance perspective by reviewing technical defects, assessing development approaches, and providing recommendations to improve solution quality and alignment with SAP standards.
+- **Technical Quality Assurance:** Reviewed 30+ reported defects and technical issues, providing ABAP-level analysis, identifying potential root causes, and recommending appropriate corrections or improvements where applicable.
+- **Collaboration with Implementation Teams:** Contributed internal SAP technical expertise to development and solution reviews, supporting alignment between implementation activities, business requirements, and long-term application maintainability.
+- **S/4HANA Readiness:** Performed technical analysis of the S/4HANA environment and documented potential enhancement opportunities to support system optimization, development readiness, and future improvements.
+- **AI-Based Code Review:** Designed and developed a prototype of the SPICE application using SAP AI Core and SAP BTP to explore AI-assisted ABAP code review capabilities, with potential application in improving technical quality assurance and review efficiency.
+- **Delivery Planning & Governance:** Created a WRICEF effort analysis tracker to support more consistent technical effort assessments, work prioritization, and governance of SAP development activities.
+
+## Goal 3: People Goal FY26 – Build Future-Ready Workforce, Organizational Effectiveness & Employee Experience
+
+- **Knowledge Sharing & Standardization:** Created comprehensive SAP ABAP naming convention and ECC coding standards documentation to establish consistent development practices, facilitate knowledge sharing, and support onboarding and future development activities.
+- **Innovation & Continuous Learning:** Proactively explored SAP Business Technology Platform (BTP), SAP AI Core, and AI-assisted development capabilities, translating this learning into the SPICE ABAP code review application prototype.
+- **Technical Capability Development:** Expanded technical expertise in S/4HANA, AMDP, SAP Integration Suite APIs, and modern ABAP development approaches through hands-on development, technical analysis, and performance optimization initiatives.
+- **Recruitment & Team Development:** Participated in three technical interviews alongside my manager, contributing to candidate technical assessments and supporting the identification of suitable SAP development talent.
+- **Cross-Team Collaboration:** Supported collaboration between internal SAP teams and the implementation partner through technical reviews, defect analysis, and recommendations to improve development quality and solution consistency.
+- **Organizational Effectiveness:** Took ownership of initiatives beyond assigned development tasks, including development governance documentation, WRICEF effort analysis tracking, system improvement assessments, and automation prototypes.
+- **Continuous Improvement Mindset:** Proactively identified opportunities to strengthen technical governance, simplify development processes, improve code quality, and introduce AI-enabled tools that can support the SAP team's future capabilities.
+
+## How your contributions are distributed
+
+| Contribution                                     | Primary Goal |
+| ------------------------------------------------ | ------------ |
+| 30+ defect reviews and recommendations           | Goal 2       |
+| Three SCTASK developments                        | Goal 2       |
+| SPICE – SAP AI Core ABAP review application      | Goals 1, 3   |
+| SAP Integration Suite dashboard prototype        | Goal 1       |
+| AMDP performance optimization                    | Goal 1       |
+| ABAP naming conventions and ECC coding standards | Goals 1, 3   |
+| WRICEF effort analysis tracker                   | Goals 1, 2   |
+| S/4HANA system improvement analysis              | Goals 1, 2   |
+| Three technical interviews                       | Goal 3       |
+
+### My recommendation for your appraisal
+
+Your strongest story is that you contributed beyond your core SAP ABAP developer responsibilities, particularly in technical governance, AI innovation, standards development, and proactive improvement of the SAP landscape.
+
+For Goal 1, emphasize modernization and intelligent operations. For Goal 2, emphasize actual development delivery and LEO technical governance. For Goal 3, emphasize knowledge sharing, skill development, innovation, and recruitment support.
+
+One important distinction: Because SPICE and the Integration Suite dashboard are prototypes, I've deliberately described them as developed prototypes or exploratory capabilities, rather than claiming enterprise-wide deployment or realized productivity savings.
+
+These comments should position your contributions positively while remaining credible during a manager's review.
