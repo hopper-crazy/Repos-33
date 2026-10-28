@@ -1,4 +1,4 @@
-
+Technical Observation – CO88 vs. CO88H | S/4HANA Optimization
 Hi,
 
 During the technical review of FSD_R3935, I noticed that the business is currently using transaction CO88 for month-end process order settlement, although SAP provides CO88H as the HANA-optimized alternative in S/4HANA.
