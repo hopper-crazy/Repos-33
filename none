@@ -1,89 +1,45 @@
-REPORT zdownload_itab.
+DATA: lo_alv  TYPE REF TO cl_salv_table,
+      lx_xlsx TYPE xstring,
+      lt_bin  TYPE solix_tab,
+      lv_len  TYPE i.
 
-TYPES: BEGIN OF ty_data,
-         matnr TYPE matnr,
-         maktx TYPE maktx,
-         menge TYPE p LENGTH 13 DECIMALS 3,
-         meins TYPE meins,
-       END OF ty_data.
+TRY.
+    cl_salv_table=>factory(
+      IMPORTING r_salv_table = lo_alv
+      CHANGING  t_table      = gt_data ).
 
-DATA: gt_data   TYPE STANDARD TABLE OF ty_data,
-      gt_header TYPE STANDARD TABLE OF string,
-      gv_path   TYPE string,
-      gv_file   TYPE string,
-      gv_full   TYPE string.
+    DATA(lo_cols) = lo_alv->get_columns( ).
+    lo_cols->set_optimize( abap_true ).
 
-START-OF-SELECTION.
+    " custom header labels
+    DATA(lo_col) = lo_cols->get_column( 'MATNR' ).
+    lo_col->set_long_text( 'Material Number' ).
+    lo_col->set_medium_text( 'Material Number' ).
+    lo_col->set_short_text( 'Material' ).
 
-  " --- sample data (replace with your SELECT) ---
-  gt_data = VALUE #(
-    ( matnr = 'MAT001' maktx = 'Steel Rod'   menge = '10.500' meins = 'KG' )
-    ( matnr = 'MAT002' maktx = 'Copper Wire' menge = '25.000' meins = 'M'  ) ).
+    lo_col = lo_cols->get_column( 'MAKTX' ).
+    lo_col->set_long_text( 'Description' ).
+    lo_col->set_medium_text( 'Description' ).
+    lo_col->set_short_text( 'Descr.' ).
 
-  " --- custom column labels (same order as the structure) ---
-  gt_header = VALUE #(
-    ( `Material Number` )
-    ( `Description` )
-    ( `Quantity` )
-    ( `Unit` ) ).
+    " repeat for MENGE and MEINS
 
-  " --- ask the user where to save ---
-  cl_gui_frontend_services=>file_save_dialog(
-    EXPORTING
-      default_extension = 'csv'
-      default_file_name = 'material_data'
-      file_filter       = 'CSV files (*.csv)|*.csv|All files (*.*)|*.*'
-    CHANGING
-      filename          = gv_file
-      path              = gv_path
-      fullpath          = gv_full
-    EXCEPTIONS
-      OTHERS            = 1 ).
+    lx_xlsx = lo_alv->to_xml( xml_type = if_salv_bs_xml=>c_type_xlsx ).
 
-  IF sy-subrc <> 0 OR gv_full IS INITIAL.
-    MESSAGE 'Download cancelled' TYPE 'S'.
-    RETURN.
-  ENDIF.
+  CATCH cx_salv_msg cx_salv_not_found INTO DATA(lx_err).
+    MESSAGE lx_err->get_text( ) TYPE 'E'.
+ENDTRY.
 
-  " --- download without displaying ---
-  cl_gui_frontend_services=>gui_download(
-    EXPORTING
-      filename                = gv_full
-      filetype                = 'ASC'
-      write_field_separator   = abap_true     " tab-separated
-      codepage                = '4110'        " UTF-8
-      trunc_trailing_blanks   = abap_true
-      fieldnames              = gt_header     " custom header row
-    CHANGING
-      data_tab                = gt_data
-    EXCEPTIONS
-      file_write_error        = 1
-      no_batch                = 2
-      gui_refuse_filetransfer = 3
-      invalid_type            = 4
-      no_authority            = 5
-      unknown_error           = 6
-      header_not_allowed      = 7
-      separator_not_allowed   = 8
-      filesize_not_allowed    = 9
-      header_too_long         = 10
-      dp_error_create         = 11
-      dp_error_send           = 12
-      dp_error_write          = 13
-      unknown_dp_error        = 14
-      access_denied           = 15
-      dp_out_of_memory        = 16
-      disk_full               = 17
-      dp_timeout              = 18
-      file_not_found          = 19
-      dataprovider_exception  = 20
-      control_flush_error     = 21
-      not_supported_by_gui    = 22
-      error_no_gui            = 23
-      OTHERS                  = 24 ).
+lv_len = xstrlen( lx_xlsx ).
+lt_bin = cl_bcs_convert=>xstring_to_solix( lx_xlsx ).
 
-  IF sy-subrc = 0.
-    MESSAGE 'File downloaded successfully' TYPE 'S'.
-  ELSE.
-    MESSAGE 'Download failed' TYPE 'E'.
-  ENDIF.
+" gv_full from file_save_dialog, with default_extension = 'xlsx'
+cl_gui_frontend_services=>gui_download(
+  EXPORTING
+    bin_filesize = lv_len
+    filename     = gv_full
+    filetype     = 'BIN'
+  CHANGING
+    data_tab     = lt_bin
+  EXCEPTIONS
+    OTHERS       = 1 ).
