@@ -1,45 +1,16 @@
-DATA: lo_alv  TYPE REF TO cl_salv_table,
-      lx_xlsx TYPE xstring,
-      lt_bin  TYPE solix_tab,
-      lv_len  TYPE i.
+  cl_gui_frontend_services=>file_save_dialog(
+    EXPORTING
+      default_extension = 'csv'
+      default_file_name = 'material_data'
+      file_filter       = 'CSV files (*.csv)|*.csv'
+    CHANGING
+      filename = gv_file
+      path     = gv_path
+      fullpath = gv_full
+    EXCEPTIONS
+      OTHERS   = 1 ).
 
-TRY.
-    cl_salv_table=>factory(
-      IMPORTING r_salv_table = lo_alv
-      CHANGING  t_table      = gt_data ).
-
-    DATA(lo_cols) = lo_alv->get_columns( ).
-    lo_cols->set_optimize( abap_true ).
-
-    " custom header labels
-    DATA(lo_col) = lo_cols->get_column( 'MATNR' ).
-    lo_col->set_long_text( 'Material Number' ).
-    lo_col->set_medium_text( 'Material Number' ).
-    lo_col->set_short_text( 'Material' ).
-
-    lo_col = lo_cols->get_column( 'MAKTX' ).
-    lo_col->set_long_text( 'Description' ).
-    lo_col->set_medium_text( 'Description' ).
-    lo_col->set_short_text( 'Descr.' ).
-
-    " repeat for MENGE and MEINS
-
-    lx_xlsx = lo_alv->to_xml( xml_type = if_salv_bs_xml=>c_type_xlsx ).
-
-  CATCH cx_salv_msg cx_salv_not_found INTO DATA(lx_err).
-    MESSAGE lx_err->get_text( ) TYPE 'E'.
-ENDTRY.
-
-lv_len = xstrlen( lx_xlsx ).
-lt_bin = cl_bcs_convert=>xstring_to_solix( lx_xlsx ).
-
-" gv_full from file_save_dialog, with default_extension = 'xlsx'
-cl_gui_frontend_services=>gui_download(
-  EXPORTING
-    bin_filesize = lv_len
-    filename     = gv_full
-    filetype     = 'BIN'
-  CHANGING
-    data_tab     = lt_bin
-  EXCEPTIONS
-    OTHERS       = 1 ).
+  IF sy-subrc <> 0 OR gv_full IS INITIAL.
+    MESSAGE 'Download cancelled' TYPE 'S'.
+    RETURN.
+  ENDIF.
