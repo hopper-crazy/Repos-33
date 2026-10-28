@@ -1,41 +1,89 @@
-DATA: lt_sales_orders TYPE TABLE OF zsales_order, " Your internal table
-      lt_catalog      TYPE cl_csv_factory=>tt_field_catalog,
-      lv_csv_xstring  TYPE xstring,
-      lt_binary       TYPE solix_tab.
+REPORT zdownload_itab.
 
-" 1. Populate your internal table (example)
-" SELECT * FROM zsales_order INTO TABLE lt_sales_orders.
+TYPES: BEGIN OF ty_data,
+         matnr TYPE matnr,
+         maktx TYPE maktx,
+         menge TYPE p LENGTH 13 DECIMALS 3,
+         meins TYPE meins,
+       END OF ty_data.
 
-" 2. Define custom column headers (the field catalog)
-APPEND VALUE #( fieldname = 'VBELN' heading = 'Sales Order' ) TO lt_catalog.
-APPEND VALUE #( fieldname = 'ERDAT' heading = 'Created On'
-                format    = cl_csv_factory=>mc_format_date_iso ) TO lt_catalog.
-APPEND VALUE #( fieldname = 'NETWR' heading = 'Net Value' ) TO lt_catalog.
-APPEND VALUE #( fieldname = 'WAERK' heading = 'Currency' ) TO lt_catalog.
+DATA: gt_data   TYPE STANDARD TABLE OF ty_data,
+      gt_header TYPE STANDARD TABLE OF string,
+      gv_path   TYPE string,
+      gv_file   TYPE string,
+      gv_full   TYPE string.
 
-" 3. Generate the CSV content in memory (no display)
-DATA(lo_csv) = cl_csv_factory=>create_csv_writer( iv_separator = ',' ).
-lo_csv->write_table(
-  EXPORTING
-    it_data          = lt_sales_orders
-    it_field_catalog = lt_catalog
-  IMPORTING
-    ev_csv_data      = lv_csv_xstring
-).
+START-OF-SELECTION.
 
-" 4. Download the xstring to the frontend as a CSV file
-lt_binary = cl_bcs_convert=>xstring_to_solix( lv_csv_xstring ).
+  " --- sample data (replace with your SELECT) ---
+  gt_data = VALUE #(
+    ( matnr = 'MAT001' maktx = 'Steel Rod'   menge = '10.500' meins = 'KG' )
+    ( matnr = 'MAT002' maktx = 'Copper Wire' menge = '25.000' meins = 'M'  ) ).
 
-cl_gui_frontend_services=>gui_download(
-  EXPORTING
-    filename     = 'sales_orders.csv'
-    filetype     = 'BIN'
-    bin_filesize = xstrlen( lv_csv_xstring )
-  CHANGING
-    data_tab     = lt_binary
-  EXCEPTIONS
-    OTHERS       = 1
-).
-IF sy-subrc <> 0.
-  " Handle download error
-ENDIF.
+  " --- custom column labels (same order as the structure) ---
+  gt_header = VALUE #(
+    ( `Material Number` )
+    ( `Description` )
+    ( `Quantity` )
+    ( `Unit` ) ).
+
+  " --- ask the user where to save ---
+  cl_gui_frontend_services=>file_save_dialog(
+    EXPORTING
+      default_extension = 'csv'
+      default_file_name = 'material_data'
+      file_filter       = 'CSV files (*.csv)|*.csv|All files (*.*)|*.*'
+    CHANGING
+      filename          = gv_file
+      path              = gv_path
+      fullpath          = gv_full
+    EXCEPTIONS
+      OTHERS            = 1 ).
+
+  IF sy-subrc <> 0 OR gv_full IS INITIAL.
+    MESSAGE 'Download cancelled' TYPE 'S'.
+    RETURN.
+  ENDIF.
+
+  " --- download without displaying ---
+  cl_gui_frontend_services=>gui_download(
+    EXPORTING
+      filename                = gv_full
+      filetype                = 'ASC'
+      write_field_separator   = abap_true     " tab-separated
+      codepage                = '4110'        " UTF-8
+      trunc_trailing_blanks   = abap_true
+      fieldnames              = gt_header     " custom header row
+    CHANGING
+      data_tab                = gt_data
+    EXCEPTIONS
+      file_write_error        = 1
+      no_batch                = 2
+      gui_refuse_filetransfer = 3
+      invalid_type            = 4
+      no_authority            = 5
+      unknown_error           = 6
+      header_not_allowed      = 7
+      separator_not_allowed   = 8
+      filesize_not_allowed    = 9
+      header_too_long         = 10
+      dp_error_create         = 11
+      dp_error_send           = 12
+      dp_error_write          = 13
+      unknown_dp_error        = 14
+      access_denied           = 15
+      dp_out_of_memory        = 16
+      disk_full               = 17
+      dp_timeout              = 18
+      file_not_found          = 19
+      dataprovider_exception  = 20
+      control_flush_error     = 21
+      not_supported_by_gui    = 22
+      error_no_gui            = 23
+      OTHERS                  = 24 ).
+
+  IF sy-subrc = 0.
+    MESSAGE 'File downloaded successfully' TYPE 'S'.
+  ELSE.
+    MESSAGE 'Download failed' TYPE 'E'.
+  ENDIF.
