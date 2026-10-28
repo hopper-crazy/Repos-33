@@ -1,19 +1,27 @@
-Exploring Opportunities to Join MMB
-Hi Wendy,
 
-I hope you are doing well.
+Hi,
 
-I recently came across the information about the Multiple Management Board (MMB) program and am very interested in being part of this initiative. I would like to enquire whether there are any ongoing or upcoming recruitment opportunities for MMB.
+During the technical review of FSD_R3935, I noticed that the business is currently using transaction CO88 for month-end process order settlement, although SAP provides CO88H as the HANA-optimized alternative in S/4HANA.
 
-I joined McCormick in July 2026, and I understand that one of the eligibility criteria is a minimum of 12 months of service with the organization.
+As per SAP documentation, CO88H is designed to simplify selection and accelerate collective settlement processing. SAP also explicitly identifies CO88 → CO88H among the transactions optimized for SAP HANA.
 
-While I have not yet completed the required tenure, I am genuinely interested in the opportunity to contribute to meaningful business initiatives, collaborate with colleagues across functions, and further develop my leadership skills.
+It is good that we have confirmed the spool structures of CO88 and CO88H are identical for our current scenario, allowing the custom development to support either transaction. Otherwise, we could have ended up building a new solution dependent on the output structure of the older, non-HANA-optimized transaction, potentially creating an unnecessary dependency when moving to CO88H in the future.
 
-I wanted to check if there is any flexibility in this eligibility requirement or an alternative way for me to get involved at this stage.
+While CO88 remains supported, I believe that, as part of our S/4HANA implementation, we should encourage the use of S/4HANA-optimized transactions wherever feasible rather than continuing with legacy transaction codes by default.
 
-I would greatly appreciate your guidance on this.
+It would be worth checking with the functional team whether there is a specific business requirement for continuing with CO88 or whether the settlement process can be transitioned to CO88H after appropriate validation.
 
-Thank you for your time and consideration.
+**SAP References:**
 
-Best regards,  
+1. **SAP Help – Settlement in Product Cost by Order or Period**  
+   SAP explicitly states that CO88H simplifies and accelerates settlement processing, while CO88 remains available for additional selection requirements.  
+   https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/5e23dc8fe9be4fd496f8ab556667ea05/5c35d85275c8d142e10000000a4450e5.html
 
+2. **SAP Community – Migration to Simple Finance**  
+   The SAP blog explicitly lists CO88 → CO88H under HANA-optimized period-end transactions.  
+   https://community.sap.com/t5/enterprise-resource-planning-blog-posts-by-sap/migration-to-simple-finance/bc-p/13137190
+
+Just wanted to highlight this from an S/4HANA optimization and long-term technical maintainability perspective.
+
+Thanks & Regards,  
+Kshitiz
