@@ -8,6 +8,8 @@ As per SAP documentation, CO88H is designed to simplify selection and accelerate
 It is good that we have confirmed the spool structures of CO88 and CO88H are identical for our current scenario, allowing the custom development to support either transaction. Otherwise, we could have ended up building a new solution dependent on the output structure of the older, non-HANA-optimized transaction, potentially creating an unnecessary dependency when moving to CO88H in the future.
 
 While CO88 remains supported, I believe that, as part of our S/4HANA implementation, we should encourage the use of S/4HANA-optimized transactions wherever feasible rather than continuing with legacy transaction codes by default.
+CO88 remains available for scenarios requiring additional selection criteria.
+
 
 It would be worth checking with the functional team whether there is a specific business requirement for continuing with CO88 or whether the settlement process can be transitioned to CO88H after appropriate validation.
 
