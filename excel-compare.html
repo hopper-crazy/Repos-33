@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excel Compare</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--bd:#d9dde3;--tx:#1d2330;--mut:#6a7385;--pri:#2563eb;--add:#e3f6e8;--rem:#fde6e6;--chg:#fff4d6}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+  header{padding:14px 24px;background:#fff;border-bottom:1px solid var(--bd)}
+  header h1{margin:0;font-size:18px}
+  header p{margin:2px 0 0;color:var(--mut);font-size:12px}
+  main{padding:16px 24px;max-width:1500px;margin:auto}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:14px;margin-bottom:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:800px){.grid2{grid-template-columns:1fr}}
+  .drop{border:2px dashed var(--bd);border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:.15s}
+  .drop.over{border-color:var(--pri);background:#eef4ff}
+  .drop b{display:block;margin-bottom:4px}
+  .drop small{color:var(--mut)}
+  .meta{margin-top:8px;font-size:12px;color:var(--mut);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  select,input[type=number]{padding:4px 6px;border:1px solid var(--bd);border-radius:5px;font:inherit;background:#fff}
+  button{padding:7px 14px;border:1px solid var(--bd);border-radius:6px;background:#fff;font:inherit;cursor:pointer}
+  button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .opts{display:flex;flex-wrap:wrap;gap:6px 22px;align-items:center}
+  .opts label{display:flex;gap:6px;align-items:center}
+  .keys{margin-top:10px;max-height:110px;overflow:auto;display:flex;flex-wrap:wrap;gap:4px 14px;padding:8px;border:1px solid var(--bd);border-radius:6px}
+  .keys label{display:flex;gap:4px;align-items:center;white-space:nowrap}
+  #status{margin:8px 0;color:var(--mut);min-height:20px}
+  #status.err{color:#c62828}
+  .sum{display:flex;gap:10px;flex-wrap:wrap}
+  .chip{padding:8px 14px;border-radius:8px;border:1px solid var(--bd);background:#fff;cursor:pointer;min-width:120px}
+  .chip.on{outline:2px solid var(--pri)}
+  .chip .n{font-size:20px;font-weight:600;display:block}
+  .chip.add{background:var(--add)}.chip.rem{background:var(--rem)}.chip.chg{background:var(--chg)}
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0 8px}
+  .toolbar .sp{flex:1}
+  .tw{overflow:auto;max-height:65vh;border:1px solid var(--bd);border-radius:6px;background:#fff}
+  table{border-collapse:collapse;width:max-content;min-width:100%}
+  th,td{border-bottom:1px solid #eceff3;border-right:1px solid #eceff3;padding:4px 8px;white-space:nowrap;text-align:left;max-width:320px;overflow:hidden;text-overflow:ellipsis}
+  th{position:sticky;top:0;background:#eef1f5;z-index:1}
+  tr.add td{background:var(--add)}tr.rem td{background:var(--rem)}
+  td.c{background:var(--chg)}
+  del{color:#b71c1c;background:#fdd;text-decoration:line-through;padding:0 2px;border-radius:2px}
+  ins{color:#1b5e20;background:#cfeed6;text-decoration:none;padding:0 2px;border-radius:2px}
+  .tag{font-size:11px;font-weight:600;padding:1px 6px;border-radius:10px}
+  .tag.add{background:#2e9e4f;color:#fff}.tag.rem{background:#d64545;color:#fff}.tag.chg{background:#e0a000;color:#fff}
+  .colsum{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .colsum span{font-size:12px;border:1px solid var(--bd);border-radius:12px;padding:2px 9px;background:#fff;cursor:pointer}
+  .colsum span.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Excel Compare</h1>
+  <p>Compares two spreadsheets (.xls / .xlsx / .csv) entirely in your browser — nothing is uploaded. Tuned for large files (50 MB / 150K+ rows).</p>
+</header>
+<main>
+  <div class="grid2">
+    <div class="card">
+      <label class="drop" id="dropA"><b>File A (original)</b><small>Click or drop a file here</small>
+        <input type="file" id="fileA" accept=".xls,.xlsx,.xlsm,.csv" class="hide"></label>
+      <div class="meta" id="metaA"></div>
+    </div>
+    <div class="card">
+      <label class="drop" id="dropB"><b>File B (new)</b><small>Click or drop a file here</small>
+        <input type="file" id="fileB" accept=".xls,.xlsx,.xlsm,.csv" class="hide"></label>
+      <div class="meta" id="metaB"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="opts">
+      <label><input type="checkbox" id="hdr" checked> First row is header</label>
+      <label>Match rows by:
+        <select id="mode"><option value="pos">Row position</option><option value="key">Key column(s)</option></select></label>
+      <label><input type="checkbox" id="trim" checked> Trim spaces</label>
+      <label><input type="checkbox" id="ci"> Ignore case</label>
+      <label>Numeric tolerance <input type="number" id="tol" value="0" min="0" step="any" style="width:80px"></label>
+      <button class="pri" id="go" disabled>Compare</button>
+    </div>
+    <div class="keys hide" id="keys"></div>
+    <div id="status"></div>
+  </div>
+
+  <div id="result" class="hide">
+    <div class="card">
+      <div class="sum" id="sum"></div>
+      <div class="colsum" id="colsum"></div>
+    </div>
+    <div class="toolbar">
+      <b id="shown"></b><span class="sp"></span>
+      <label>Rows/page <select id="ps"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label>
+      <button id="prev">‹ Prev</button><span id="pg"></span><button id="next">Next ›</button>
+      <button id="csv">Export differences (CSV)</button>
+    </div>
+    <div class="tw"><table id="tbl"></table></div>
+  </div>
+</main>
+
+<script>
+const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+
+// ---------- Worker: parses the workbook off the main thread ----------
+const workerSrc = `
+importScripts('${XLSX_URL}');
+let wb = null;
+function fmtDate(d){
+  if(isNaN(d)) return '';
+  const s = d.toISOString().replace('T',' ').replace(/\\.\\d{3}Z$/,'');
+  return s.endsWith(' 00:00:00') ? s.slice(0,10) : s;
+}
+onmessage = e => {
+  const m = e.data;
+  try {
+    if (m.type === 'load') {
+      wb = XLSX.read(m.buf, {type:'array', dense:true, cellDates:true});
+      postMessage({type:'loaded', sheets: wb.SheetNames});
+    } else if (m.type === 'sheet') {
+      const ws = wb.Sheets[m.name];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:'', blankrows:true});
+      for (const r of rows) for (let i=0;i<r.length;i++) if (r[i] instanceof Date) r[i] = fmtDate(r[i]);
+      postMessage({type:'rows', rows});
+    }
+  } catch(err) { postMessage({type:'error', msg: String(err && err.message || err)}); }
+};`;
+
+const $ = id => document.getElementById(id);
+const S = { A:{}, B:{} };
+let result = null, view = [], page = 0, activeType = 'all', activeCol = -1;
+
+function setStatus(t, err){ const s=$('status'); s.textContent=t||''; s.className = err?'err':''; }
+const fmtSize = n => n>1048576 ? (n/1048576).toFixed(1)+' MB' : (n/1024).toFixed(0)+' KB';
+function colName(i){ let s=''; i++; while(i>0){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26);} return s; }
+const esc = v => String(v).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ---------- File loading ----------
+function setup(side){
+  const input = $('file'+side), drop = $('drop'+side);
+  input.addEventListener('change', () => input.files[0] && loadFile(side, input.files[0]));
+  ['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) loadFile(side, f); });
+}
+setup('A'); setup('B');
+
+async function loadFile(side, file){
+  const st = S[side];
+  if (st.worker) st.worker.terminate();
+  st.rows = null; st.file = file; updateGo();
+  const meta = $('meta'+side);
+  meta.textContent = `Reading ${file.name} (${fmtSize(file.size)})…`;
+  setStatus('Parsing '+file.name+' — large files can take a little while…');
+  let w;
+  try { w = new Worker(URL.createObjectURL(new Blob([workerSrc], {type:'text/javascript'}))); }
+  catch(e){ setStatus('Could not start background worker: '+e.message, true); return; }
+  st.worker = w;
+  w.onerror = e => { setStatus('Worker error (are you online? the Excel parser is loaded from a CDN).', true); };
+  w.onmessage = e => {
+    const m = e.data;
+    if (m.type === 'error') { setStatus('Error reading '+file.name+': '+m.msg, true); meta.textContent=''; }
+    else if (m.type === 'loaded') {
+      st.sheets = m.sheets;
+      meta.innerHTML = `<b>${esc(file.name)}</b> · ${fmtSize(file.size)} · Sheet: <select id="sh${side}">${m.sheets.map(s=>`<option>${esc(s)}</option>`).join('')}</select> <span id="rc${side}"></span>`;
+      $('sh'+side).onchange = ev => requestSheet(side, ev.target.value);
+      requestSheet(side, m.sheets[0]);
+    } else if (m.type === 'rows') {
+      st.rows = m.rows;
+      $('rc'+side).textContent = `· ${m.rows.length.toLocaleString()} rows × ${m.rows.reduce((a,r)=>Math.max(a,r.length),0)} cols`;
+      setStatus('');
+      updateGo(); buildKeys();
+    }
+  };
+  w.postMessage({type:'load', buf: await file.arrayBuffer()});
+}
+function requestSheet(side, name){
+  S[side].rows = null; updateGo();
+  setStatus('Reading sheet "'+name+'"…');
+  S[side].worker.postMessage({type:'sheet', name});
+}
+function updateGo(){ $('go').disabled = !(S.A.rows && S.B.rows); }
+
+// ---------- Key column picker ----------
+function headersOf(){
+  const rows = S.A.rows; if (!rows) return [];
+  const width = Math.max(...[S.A.rows, S.B.rows||[]].map(r => r.reduce((a,x)=>Math.max(a,x.length),0)));
+  const hdr = $('hdr').checked;
+  return Array.from({length:width}, (_,i) => hdr && rows[0] && String(rows[0][i] ?? '').trim() !== '' ? String(rows[0][i]) : 'Col '+colName(i));
+}
+function buildKeys(){
+  const box = $('keys');
+  box.classList.toggle('hide', $('mode').value !== 'key');
+  if (!S.A.rows) return;
+  const prev = new Set([...box.querySelectorAll('input:checked')].map(i=>+i.value));
+  box.innerHTML = headersOf().map((h,i)=>`<label><input type="checkbox" value="${i}" ${prev.has(i)||(!prev.size&&i===0)?'checked':''}> ${esc(h)}</label>`).join('');
+}
+$('mode').onchange = buildKeys; $('hdr').onchange = buildKeys;
+
+// ---------- Compare ----------
+function compare(){
+  const hdr = $('hdr').checked, trim = $('trim').checked, ci = $('ci').checked, tol = +$('tol').value || 0;
+  const mode = $('mode').value;
+  const A = S.A.rows, B = S.B.rows;
+  const headers = headersOf(), W = headers.length;
+  const off = hdr ? 1 : 0;
+
+  const norm = v => {
+    if (v == null) return '';
+    if (typeof v === 'number') return v;
+    let s = String(v); if (trim) s = s.trim(); if (ci) s = s.toLowerCase(); return s;
+  };
+  const eq = (a, b) => {
+    const x = norm(a), y = norm(b);
+    if (x === y) return true;
+    const tx = typeof x, ty = typeof y;
+    if (tx === 'number' || ty === 'number') {
+      const nx = tx === 'number' ? x : (x !== '' ? +x : NaN);
+      const ny = ty === 'number' ? y : (y !== '' ? +y : NaN);
+      if (isFinite(nx) && isFinite(ny)) return Math.abs(nx - ny) <= tol;
+    }
+    return false;
+  };
+  const diffRow = (ra, rb) => {
+    const out = [];
+    for (let c = 0; c < W; c++) if (!eq(ra[c], rb[c])) out.push(c);
+    return out;
+  };
+
+  const diffs = []; let same = 0;
+  const colCounts = new Array(W).fill(0);
+  let headerWarn = '';
+  if (hdr) {
+    const bad = []; for (let c=0;c<W;c++) if (!eq(A[0]?.[c], B[0]?.[c])) bad.push(c);
+    if (bad.length) headerWarn = `Header names differ in ${bad.length} column(s) — columns are matched by position.`;
+  }
+
+  if (mode === 'pos') {
+    const n = Math.max(A.length, B.length);
+    for (let i = off; i < n; i++) {
+      if (i >= A.length) diffs.push({t:'add', ra:null, rb:i, a:null, b:B[i]});
+      else if (i >= B.length) diffs.push({t:'rem', ra:i, rb:null, a:A[i], b:null});
+      else {
+        const cc = diffRow(A[i], B[i]);
+        if (cc.length) { diffs.push({t:'chg', ra:i, rb:i, a:A[i], b:B[i], cc}); cc.forEach(c=>colCounts[c]++); }
+        else same++;
+      }
+    }
+  } else {
+    const keyIdx = [...$('keys').querySelectorAll('input:checked')].map(i=>+i.value);
+    if (!keyIdx.length) throw new Error('Select at least one key column.');
+    const keyOf = r => keyIdx.map(i => { const v = norm(r[i]); return String(v); }).join('\u0001');
+    const index = (rows) => {
+      const m = new Map(), seen = new Map();
+      for (let i = off; i < rows.length; i++) {
+        let k = keyOf(rows[i]);
+        const n = (seen.get(k) || 0) + 1; seen.set(k, n);
+        if (n > 1) k += '\u0002' + n;           // duplicate keys are matched in order of appearance
+        m.set(k, i);
+      }
+      return m;
+    };
+    const mA = index(A), mB = index(B);
+    for (const [k, i] of mA) {
+      const j = mB.get(k);
+      if (j === undefined) diffs.push({t:'rem', ra:i, rb:null, a:A[i], b:null});
+      else {
+        const cc = diffRow(A[i], B[j]);
+        if (cc.length) { diffs.push({t:'chg', ra:i, rb:j, a:A[i], b:B[j], cc}); cc.forEach(c=>colCounts[c]++); }
+        else same++;
+      }
+    }
+    for (const [k, j] of mB) if (!mA.has(k)) diffs.push({t:'add', ra:null, rb:j, a:null, b:B[j]});
+    diffs.sort((p, q) => (p.ra ?? 1e12 + p.rb) - (q.ra ?? 1e12 + q.rb));
+  }
+  return {diffs, same, colCounts, headers, headerWarn, mode, total:{a:A.length-off, b:B.length-off}};
+}
+
+$('go').onclick = () => {
+  $('go').disabled = true; setStatus('Comparing…');
+  setTimeout(() => {
+    try {
+      result = compare();
+      activeType = 'all'; activeCol = -1; page = 0;
+      renderSummary(); applyFilter();
+      $('result').classList.remove('hide');
+      setStatus(result.headerWarn);
+    } catch (e) { setStatus(e.message, true); }
+    updateGo();
+  }, 30);
+};
+
+// ---------- Rendering ----------
+function renderSummary(){
+  const r = result, n = t => r.diffs.filter(d=>d.t===t).length;
+  const cnt = {chg:n('chg'), add:n('add'), rem:n('rem')};
+  const chip = (k, label, num, cls) => `<div class="chip ${cls} ${activeType===k?'on':''}" data-t="${k}"><span class="n">${num.toLocaleString()}</span>${label}</div>`;
+  $('sum').innerHTML =
+    chip('all','All differences', r.diffs.length, '') +
+    chip('chg','Changed rows', cnt.chg, 'chg') +
+    chip('rem','Only in A (removed)', cnt.rem, 'rem') +
+    chip('add','Only in B (added)', cnt.add, 'add') +
+    `<div class="chip"><span class="n">${r.same.toLocaleString()}</span>Identical rows</div>`;
+  $('sum').querySelectorAll('.chip[data-t]').forEach(el => el.onclick = () => { activeType = el.dataset.t; page = 0; renderSummary(); applyFilter(); });
+  const cols = r.colCounts.map((c,i)=>[i,c]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
+  $('colsum').innerHTML = cols.length ? '<b style="font-size:12px;margin-right:4px">Mismatches by column:</b>' +
+    cols.map(([i,c])=>`<span data-c="${i}" class="${activeCol===i?'on':''}">${esc(r.headers[i])}: ${c.toLocaleString()}</span>`).join('') : '';
+  $('colsum').querySelectorAll('span[data-c]').forEach(el => el.onclick = () => {
+    const c = +el.dataset.c; activeCol = activeCol === c ? -1 : c; if (activeCol>=0) activeType='chg';
+    page = 0; renderSummary(); applyFilter();
+  });
+}
+function applyFilter(){
+  view = result.diffs.filter(d => (activeType==='all' || d.t===activeType) && (activeCol<0 || (d.cc && d.cc.includes(activeCol))));
+  renderPage();
+}
+function renderPage(){
+  const ps = +$('ps').value, pages = Math.max(1, Math.ceil(view.length/ps));
+  page = Math.min(page, pages-1);
+  const slice = view.slice(page*ps, page*ps+ps), H = result.headers, W = H.length;
+  const off = $('hdr').checked ? 0 : 0;
+  let h = '<thead><tr><th>Type</th><th>Row A</th><th>Row B</th>' + H.map(x=>`<th title="${esc(x)}">${esc(x)}</th>`).join('') + '</tr></thead><tbody>';
+  const label = {chg:'CHANGED', add:'ADDED', rem:'REMOVED'};
+  for (const d of slice) {
+    h += `<tr class="${d.t}"><td><span class="tag ${d.t}">${label[d.t]}</span></td><td>${d.ra!=null?d.ra+1:''}</td><td>${d.rb!=null?d.rb+1:''}</td>`;
+    for (let c = 0; c < W; c++) {
+      if (d.t === 'chg' && d.cc.includes(c)) h += `<td class="c"><del>${esc(d.a[c] ?? '')}</del> <ins>${esc(d.b[c] ?? '')}</ins></td>`;
+      else h += `<td>${esc((d.t==='add' ? d.b[c] : d.a[c]) ?? '')}</td>`;
+    }
+    h += '</tr>';
+  }
+  $('tbl').innerHTML = h + '</tbody>';
+  $('shown').textContent = `${view.length.toLocaleString()} differing row(s)`;
+  $('pg').textContent = `Page ${page+1} / ${pages}`;
+  $('prev').disabled = page === 0; $('next').disabled = page >= pages-1;
+}
+$('prev').onclick = () => { page--; renderPage(); };
+$('next').onclick = () => { page++; renderPage(); };
+$('ps').onchange = () => { page = 0; renderPage(); };
+
+// ---------- CSV export ----------
+$('csv').onclick = () => {
+  const H = result.headers, W = H.length;
+  const q = v => { v = String(v ?? ''); return /[",\n\r]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  const lines = [['Type','Row A','Row B',...H].map(q).join(',')];
+  for (const d of view) {
+    const row = [d.t==='chg'?'CHANGED':d.t==='add'?'ADDED':'REMOVED', d.ra!=null?d.ra+1:'', d.rb!=null?d.rb+1:''];
+    for (let c = 0; c < W; c++) {
+      if (d.t==='chg' && d.cc.includes(c)) row.push(`${d.a[c] ?? ''}  =>  ${d.b[c] ?? ''}`);
+      else row.push(d.t==='add' ? d.b[c] : d.a[c]);
+    }
+    lines.push(row.map(q).join(','));
+  }
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'comparison-differences.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+};
+</script>
+</body>
+</html>
