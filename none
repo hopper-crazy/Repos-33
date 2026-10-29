@@ -1,59 +1,633 @@
-CONSTANTS:
-  gc_records_per_file TYPE i VALUE 500000.
+" ZCL_PLM_DATA_EXTRACT - ECC-parity-oriented S/4HANA implementation
+" Assumptions/required DDIC: ZUT_ESTRH_T, ZUT_ESTVH_T, ZUT_ESTVA_T,
+" ZUT_ESTDU_T, ZUT_AUSP_T, ZUT_ESTPH_T, ZUT_ESTPP_T, ZUT_CABN_T,
+" ZUT_CABNT_T, ZUT_TCG12_T, ZUT_VAT_EXT_T and RFC FM ZUT_RFC_DATA_EXT.
+" NOTE: VAT retains the existing ECC RFC intentionally. See migration notes.
 
-DATA:
-  gv_total_records TYPE i,
-  gv_start         TYPE i VALUE 1,
-  gv_end           TYPE i,
-  gv_file_number   TYPE i VALUE 1,
-  gv_filename      TYPE string,
-  gv_file_number_c TYPE n LENGTH 3,
-  gt_file_data     TYPE STANDARD TABLE OF ty_output.
+CLASS zcl_plm_data_extract DEFINITION PUBLIC FINAL CREATE PUBLIC.
+  PUBLIC SECTION.
+    INTERFACES if_amdp_marker_hdb.
 
-gv_total_records = lines( gt_data ).
+    TYPES: BEGIN OF ty_head,
+             recn    TYPE eserecn,
+             actn    TYPE eseactn,
+             delflg  TYPE esedelflg,
+             parkflg TYPE eseparkflg,
+             crdat   TYPE esecrdat,
+             upddat  TYPE eseupddat,
+             upddats TYPE eseupddats,
+             subid   TYPE esesubid,
+             subcat  TYPE esesubcat,
+             subchar TYPE esesubchar,
+             authgrp TYPE eseauthgrp,
+             rem     TYPE eserem,
+           END OF ty_head,
+           tt_head TYPE STANDARD TABLE OF ty_head WITH EMPTY KEY.
 
-WHILE gv_start <= gv_total_records.
+    " Field order is the ECC TY_HEAD order, not the old S/4 field order.
+    TYPES: BEGIN OF ty_header_out,
+             subid   TYPE esesubid,
+             subcat  TYPE esesubcat,
+             subchar TYPE esesubchar,
+             authgrp TYPE eseauthgrp,
+             rem     TYPE eserem,
+             crdat   TYPE esecrdat,
+             upddat  TYPE eseupddat,
+             upddats TYPE eseupddats,
+           END OF ty_header_out,
+           tt_header_out TYPE STANDARD TABLE OF ty_header_out WITH EMPTY KEY.
 
-  "Calculate the end index for the current file
-  gv_end = gv_start + gc_records_per_file - 1.
+    TYPES: BEGIN OF ty_ident,
+             subid   TYPE esesubid,
+             idtype  TYPE eseidtype,
+             idcat   TYPE eseidcat,
+             langu   TYPE eselangu,
+             ident   TYPE eseident,
+             ord     TYPE eseord,
+             vaclid  TYPE esevaclid,
+             rvlid   TYPE eservlid,
+             exclflg TYPE eseexclflg,
+             actvflg TYPE eseactvflg,
+             slstid  TYPE eseslstid,
+             crdat   TYPE esecrdat,
+             upddat  TYPE eseupddat,
+             upddats TYPE eseupddats,
+           END OF ty_ident,
+           tt_ident TYPE STANDARD TABLE OF ty_ident WITH EMPTY KEY.
 
-  IF gv_end > gv_total_records.
-    gv_end = gv_total_records.
-  ENDIF.
+    TYPES: BEGIN OF ty_material,
+             subid   TYPE esesubid,
+             werks   TYPE werks_d,
+             matnr   TYPE matnr,
+             crdat   TYPE esecrdat,
+             upddat  TYPE eseupddat,
+             upddats TYPE eseupddats,
+           END OF ty_material,
+           tt_material TYPE STANDARD TABLE OF ty_material WITH EMPTY KEY.
 
-  "Prepare current chunk
-  CLEAR gt_file_data.
+    " The ECC output is GT_VAT TYPE ZUT_VAT_EXT_T, *not* the
+    " hand-reconstructed TY_VAT structure of the S/4 prototype.
+    TYPES tt_vat TYPE zut_vat_ext_t.
 
-  APPEND LINES OF gt_data
-    FROM gv_start
-    TO gv_end
-    TO gt_file_data.
+    " DB transport type: SUBID is CHAR12; ECC output RECNCMP is NUMC20.
+    " Assignment from SUBID to RECNCMP must occur in ABAP, as in ECC.
+    TYPES: BEGIN OF ty_comp_db,
+             subid   TYPE esesubid,
+             estcat  TYPE eseestcat,
+             estnam  TYPE eseestnam,
+             ord1    TYPE eseord,
+             vaclid  TYPE esevaclid,
+             rvlid   TYPE eservlid,
+             exclflg TYPE eseexclflg,
+             actvflg TYPE eseactvflg,
+             compcat TYPE esecompcat,
+             recncmp TYPE esesubid,
+             estcat1 TYPE eseestcat,
+             precl   TYPE eseprecl,
+             complow TYPE esecomplow,
+             precu   TYPE eseprecu,
+             compupp TYPE esecompupp,
+             compavg TYPE esecompavg,
+             compexp TYPE esecompexp,
+             ord2    TYPE eseord,
+             crdat   TYPE esecrdat,
+             upddat  TYPE eseupddat,
+             upddats TYPE eseupddats,
+           END OF ty_comp_db,
+           tt_comp_db TYPE STANDARD TABLE OF ty_comp_db WITH EMPTY KEY.
 
-  "Build filename
-  gv_file_number_c = gv_file_number.
+    TYPES: BEGIN OF ty_composition,
+             subid   TYPE esesubid,
+             estcat  TYPE eseestcat,
+             estnam  TYPE eseestnam,
+             ord1    TYPE eseord,
+             vaclid  TYPE esevaclid,
+             rvlid   TYPE eservlid,
+             exclflg TYPE eseexclflg,
+             actvflg TYPE eseactvflg,
+             compcat TYPE esecompcat,
+             recncmp TYPE eserecncmp, " ECC: preserve its field type
+             estcat1 TYPE eseestcat,
+             precl   TYPE eseprecl,
+             complow TYPE esecomplow,
+             precu   TYPE eseprecu,
+             compupp TYPE esecompupp,
+             compavg TYPE esecompavg,
+             compexp TYPE esecompexp,
+             ord2    TYPE eseord,
+             crdat   TYPE esecrdat,
+             upddat  TYPE eseupddat,
+             upddats TYPE eseupddats,
+           END OF ty_composition,
+           tt_composition TYPE STANDARD TABLE OF ty_composition WITH EMPTY KEY.
 
-  gv_filename = |C:\Temp\OUTPUT_{ gv_file_number_c }.csv|.
+    TYPES: BEGIN OF ty_inherit,
+             subidd  TYPE esesubid,
+             subcatd TYPE esesubcat,
+             subids  TYPE esesubid,
+             subcats TYPE esesubcat,
+             objid   TYPE esegrpobjid,
+             crdat   TYPE esecrdat,
+             upddat  TYPE eseupddat,
+             upddats TYPE eseupddats,
+           END OF ty_inherit,
+           tt_inherit TYPE STANDARD TABLE OF ty_inherit WITH EMPTY KEY.
 
-  "Download current chunk
-  CALL FUNCTION 'GUI_DOWNLOAD'
-    EXPORTING
-      filename              = gv_filename
-      filetype              = 'ASC'
-      write_field_separator = abap_true
-    TABLES
-      data_tab              = gt_file_data
-    EXCEPTIONS
-      file_write_error      = 1
-      no_batch              = 2
-      gui_refuse_filetransfer = 3
-      OTHERS                = 4.
+    CLASS-METHODS get_esh_data
+      IMPORTING VALUE(iv_subcat)       TYPE estrh-subcat
+                VALUE(iv_subid_filter) TYPE string
+      EXPORTING VALUE(et_estrh)        TYPE tt_head.
 
-  IF sy-subrc <> 0.
-    MESSAGE 'Error downloading output file' TYPE 'E'.
-  ENDIF.
+    CLASS-METHODS get_header
+      IMPORTING VALUE(it_head) TYPE tt_head
+      EXPORTING VALUE(et_data) TYPE tt_header_out.
 
-  "Move to next chunk
-  gv_start       = gv_end + 1.
-  gv_file_number = gv_file_number + 1.
+    CLASS-METHODS get_identifiers
+      IMPORTING VALUE(it_head) TYPE tt_head
+      EXPORTING VALUE(et_data) TYPE tt_ident.
 
-ENDWHILE.
+    CLASS-METHODS get_materials
+      IMPORTING VALUE(it_head)   TYPE tt_head
+                VALUE(iv_subcat) TYPE estrh-subcat
+      EXPORTING VALUE(et_data)   TYPE tt_material.
+
+    CLASS-METHODS get_vat
+      IMPORTING VALUE(it_head)  TYPE tt_head
+                VALUE(iv_langu) TYPE sylangu
+      EXPORTING VALUE(et_data)  TYPE tt_vat.
+
+    CLASS-METHODS get_composition
+      IMPORTING VALUE(it_head)  TYPE tt_head
+                VALUE(iv_langu) TYPE sylangu
+      EXPORTING VALUE(et_data)  TYPE tt_composition.
+
+    CLASS-METHODS get_inheritance
+      IMPORTING VALUE(it_head) TYPE tt_head
+      EXPORTING VALUE(et_data) TYPE tt_inherit.
+
+  PRIVATE SECTION.
+    CLASS-METHODS get_composition_db
+      IMPORTING VALUE(it_head)  TYPE tt_head
+                VALUE(iv_langu) TYPE sylangu
+      EXPORTING VALUE(et_data)  TYPE tt_comp_db.
+ENDCLASS.
+
+CLASS zcl_plm_data_extract IMPLEMENTATION.
+
+  METHOD get_esh_data BY DATABASE PROCEDURE FOR HDB
+                      LANGUAGE SQLSCRIPT OPTIONS READ-ONLY
+                      USING estrh estmj zut_gld_mat.
+    " ECC: SUBCAT CS 'REAL' or SUBCAT = 'ZCORP_SPEC'.
+    " Do not add filters on ESTMJ-DELFLG / PARKFLG to header eligibility.
+    lt_head =
+      SELECT DISTINCT
+             h.recn, h.actn, h.delflg, h.parkflg,
+             h.crdat, h.upddat, h.upddats,
+             h.subid, h.subcat, h.subchar, h.authgrp, h.rem
+        FROM estrh AS h
+       WHERE h.mandt = SESSION_CONTEXT('CLIENT')
+         AND h.delflg = ' '
+         AND h.subcat = :iv_subcat
+         AND ( ( INSTR(UPPER(:iv_subcat), 'REAL') = 0
+                 AND :iv_subcat <> 'ZCORP_SPEC' )
+               OR EXISTS (
+                 SELECT 1
+                   FROM estmj AS m
+                   INNER JOIN zut_gld_mat AS g
+                     ON g.mandt = m.mandt
+                    AND g.matnr = m.matnr
+                  WHERE m.mandt = h.mandt
+                    AND m.recnroot = h.recn ) );
+
+    IF :iv_subid_filter IS NULL OR :iv_subid_filter = '' THEN
+      et_estrh = SELECT * FROM :lt_head ORDER BY recn, actn;
+    ELSE
+      lt_filter = APPLY_FILTER(:lt_head, :iv_subid_filter);
+      et_estrh = SELECT * FROM :lt_filter ORDER BY recn, actn;
+    END IF;
+  ENDMETHOD.
+
+  METHOD get_header.
+    " Pure field mapping; invoking HANA again would add overhead.
+    CLEAR et_data.
+    LOOP AT it_head ASSIGNING FIELD-SYMBOL(<h>).
+      APPEND VALUE #( subid   = <h>-subid
+                      subcat  = <h>-subcat
+                      subchar = <h>-subchar
+                      authgrp = <h>-authgrp
+                      rem     = <h>-rem
+                      crdat   = <h>-crdat
+                      upddat  = <h>-upddat
+                      upddats = <h>-upddats ) TO et_data.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD get_identifiers BY DATABASE PROCEDURE FOR HDB
+                         LANGUAGE SQLSCRIPT OPTIONS READ-ONLY
+                         USING estri estdu estrl.
+    " Header READ TABLE ... WITH KEY RECN picks first ACTN in sorted ECC GT_ESTRH.
+    lt_h =
+      SELECT recn, subid,
+             ROW_NUMBER() OVER (PARTITION BY recn ORDER BY actn) AS rn
+        FROM :it_head;
+
+    " FAE DISTINCT input rows; physical primary keys are RECN/ACTN.
+    " LEFT JOIN on BOTH optional sources preserves ECC's D x L cardinality.
+    et_data =
+      SELECT h.subid,
+             i.idtype, i.idcat, i.langu, i.ident, i.ord,
+             d.vaclid, d.rvlid, d.exclflg, d.actvflg,
+             l.slstid,
+             i.crdat, i.upddat,
+             CAST(NULL AS NVARCHAR(8)) AS upddats
+        FROM :lt_h AS h
+        INNER JOIN estri AS i
+          ON i.mandt = SESSION_CONTEXT('CLIENT')
+         AND i.recnroot = h.recn
+         AND i.delflg = ' '
+        LEFT OUTER JOIN estdu AS d
+          ON d.mandt = i.mandt
+         AND d.recnmst = i.recn
+         AND d.delflg = ' '
+        LEFT OUTER JOIN estrl AS l
+          ON l.mandt = i.mandt
+         AND l.recntri = i.recn
+         AND l.delflg = ' '
+       WHERE h.rn = 1
+       ORDER BY i.recn, i.actn,
+                d.recn, d.actn, l.recn, l.actn;
+  ENDMETHOD.
+
+  METHOD get_materials BY DATABASE PROCEDURE FOR HDB
+                       LANGUAGE SQLSCRIPT OPTIONS READ-ONLY
+                       USING estmj zut_gld_mat mara.
+    lt_h =
+      SELECT recn, subid, crdat, upddat, upddats,
+             ROW_NUMBER() OVER (PARTITION BY recn ORDER BY actn) AS rn
+        FROM :it_head;
+
+    IF :iv_subcat = 'REAL_SUB' THEN
+      " Legacy REAL_SUB walks MARA sorted by MTART, then ESTMJ by MATNR.
+      " This also requires that the material exist in MARA.
+      et_data =
+        SELECT h.subid, m.werks, m.matnr,
+               h.crdat, h.upddat, h.upddats
+          FROM :lt_h AS h
+          INNER JOIN estmj AS m
+            ON m.mandt = SESSION_CONTEXT('CLIENT')
+           AND m.recnroot = h.recn
+           AND m.delflg = ' '
+          INNER JOIN mara AS a
+            ON a.mandt = m.mandt AND a.matnr = m.matnr
+         WHERE h.rn = 1
+           AND EXISTS (
+             SELECT 1 FROM zut_gld_mat AS g
+              WHERE g.mandt = m.mandt AND g.matnr = m.matnr )
+         ORDER BY a.mtart, a.matnr, m.matnr, m.recn, m.actn;
+    ELSE
+      et_data =
+        SELECT h.subid, m.werks, m.matnr,
+               h.crdat, h.upddat, h.upddats
+          FROM :lt_h AS h
+          INNER JOIN estmj AS m
+            ON m.mandt = SESSION_CONTEXT('CLIENT')
+           AND m.recnroot = h.recn
+           AND m.delflg = ' '
+         WHERE h.rn = 1
+           AND EXISTS (
+             SELECT 1 FROM zut_gld_mat AS g
+              WHERE g.mandt = m.mandt AND g.matnr = m.matnr )
+         ORDER BY m.recn, m.actn;
+    END IF;
+  ENDMETHOD.
+
+  METHOD get_composition.
+    " Preserve ABAP MOVE semantics, especially CHAR SUBID -> NUMC RECNCMP.
+    DATA lt_db TYPE tt_comp_db.
+    get_composition_db(
+      EXPORTING it_head = it_head iv_langu = iv_langu
+      IMPORTING et_data = lt_db ).
+    CLEAR et_data.
+    LOOP AT lt_db ASSIGNING FIELD-SYMBOL(<src>).
+      APPEND INITIAL LINE TO et_data ASSIGNING FIELD-SYMBOL(<dst>).
+      MOVE-CORRESPONDING <src> TO <dst>.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD get_composition_db BY DATABASE PROCEDURE FOR HDB
+                         LANGUAGE SQLSCRIPT OPTIONS READ-ONLY
+                         USING estvh estva estdu estvp estrh tcg12.
+    " One ECC header per RECN for output fields.
+    lt_h =
+      SELECT recn, subid,
+             ROW_NUMBER() OVER (PARTITION BY recn ORDER BY actn) AS rn
+        FROM :it_head;
+
+    " IMPORTANT: independently dedupe ESTVH by RECN/ACTN for ECC READ TABLE.
+    " ESTVA selection uses all eligible ESTVH versions. The first ESTVH
+    " version is used only when mapping the ESTVA back to ESTCAT.
+    lt_vh =
+      SELECT v.recn, v.actn, v.recnroot, v.estcat,
+             ROW_NUMBER() OVER (PARTITION BY v.recn ORDER BY v.actn) AS rn
+        FROM estvh AS v
+       WHERE v.mandt = SESSION_CONTEXT('CLIENT')
+         AND v.delflg = ' '
+         AND EXISTS (SELECT 1 FROM :lt_h AS h WHERE h.recn = v.recnroot);
+
+    " Restrict version resolution to composition references actually needed.
+    lt_comp_refs =
+      SELECT DISTINCT vp.recncmp
+        FROM :lt_vh AS vh
+        INNER JOIN estva AS va
+          ON va.mandt = SESSION_CONTEXT('CLIENT')
+         AND va.recntvh = vh.recn AND va.delflg = ' '
+        INNER JOIN estvp AS vp
+          ON vp.mandt = va.mandt
+         AND vp.recntva = va.recn AND vp.delflg = ' '
+       WHERE vh.rn = 1;
+
+    lt_comp =
+      SELECT c.recn, c.subid, c.subcat,
+             ROW_NUMBER() OVER (PARTITION BY c.recn ORDER BY c.actn) AS rn
+        FROM estrh AS c
+        INNER JOIN :lt_comp_refs AS cr ON cr.recncmp = c.recn
+       WHERE c.mandt = SESSION_CONTEXT('CLIENT')
+         AND c.delflg = ' ';
+
+    " Work on unique ESTVA rows, not ESTVH x ESTVA multiplicative versions.
+    " Same for ESTVP. Optional ESTDU multiplies output if >1 row, as in ECC.
+    et_data =
+      SELECT h.subid,
+             vh.estcat, n.estnam,
+             va.ord AS ord1,
+             d.vaclid, d.rvlid, d.exclflg, d.actvflg,
+             vp.compcat,
+             comp.subid AS recncmp,
+             comp.subcat AS estcat1,
+             vp.precl, vp.complow, vp.precu,
+             vp.compupp, vp.compavg, vp.compexp,
+             vp.ord AS ord2,
+             va.crdat, va.upddat,
+             CAST(NULL AS NVARCHAR(8)) AS upddats
+        FROM :lt_vh AS vh
+        INNER JOIN :lt_h AS h
+          ON h.recn = vh.recnroot AND h.rn = 1
+        INNER JOIN estva AS va
+          ON va.mandt = SESSION_CONTEXT('CLIENT')
+         AND va.recntvh = vh.recn AND va.delflg = ' '
+        INNER JOIN estvp AS vp
+          ON vp.mandt = va.mandt
+         AND vp.recntva = va.recn AND vp.delflg = ' '
+        LEFT OUTER JOIN estdu AS d
+          ON d.mandt = va.mandt
+         AND d.recnmst = va.recn AND d.delflg = ' '
+        LEFT OUTER JOIN :lt_comp AS comp
+          ON comp.recn = vp.recncmp AND comp.rn = 1
+        LEFT OUTER JOIN tcg12 AS n
+          ON n.mandt = va.mandt
+         AND n.estcat = vh.estcat AND n.langu = :iv_langu
+       WHERE vh.rn = 1
+       ORDER BY va.recn, va.actn, d.recn, d.actn, vp.recn, vp.actn;
+  ENDMETHOD.
+
+  METHOD get_inheritance.
+    " Keep ECC lookup semantics where nonunique template RECN_GRP means
+    " a SQL ROW_NUMBER/ORDER BY OBJID winner cannot be proved equivalent.
+    " SQL requests remain set-based; key-driven assembly stays in ABAP.
+    TYPES: BEGIN OF ty_rel,
+             recn         TYPE eserecn,
+             actn         TYPE eseactn,
+             delflg       TYPE esedelflg,
+             parkflg      TYPE eseparkflg,
+             crdat        TYPE esecrdat,
+             upddat       TYPE eseupddat,
+             recnroot     TYPE eserecn,
+             recnroot_src TYPE eserecn,
+             recnroot_dst TYPE eserecn,
+             recn_tplh    TYPE eserecn,
+           END OF ty_rel,
+           tt_rel TYPE HASHED TABLE OF ty_rel WITH UNIQUE KEY recn actn,
+           BEGIN OF ty_tpl,
+             recn_grp TYPE eserecn,
+             objid    TYPE esegrpobjid,
+           END OF ty_tpl,
+           tt_tpl TYPE STANDARD TABLE OF ty_tpl
+             WITH NON-UNIQUE SORTED KEY p00 COMPONENTS recn_grp,
+           tt_sorted_head TYPE SORTED TABLE OF ty_head
+             WITH NON-UNIQUE KEY recn actn.
+
+    DATA: lt_dst TYPE tt_sorted_head,
+          lt_src TYPE tt_sorted_head,
+          lt_rel TYPE tt_rel,
+          lt_tpl TYPE tt_tpl.
+
+    CLEAR et_data.
+    IF it_head IS INITIAL.
+      RETURN.
+    ENDIF.
+    INSERT LINES OF it_head INTO TABLE lt_dst.
+
+    SELECT recn, actn, delflg, parkflg, crdat, upddat,
+           recnroot, recnroot_src, recnroot_dst, recn_tplh
+      FROM tcgtplrel
+      FOR ALL ENTRIES IN @lt_dst
+      WHERE recnroot_dst = @lt_dst-recn
+        AND delflg = @space
+      INTO CORRESPONDING FIELDS OF TABLE @lt_rel.
+    IF lt_rel IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    SELECT DISTINCT recn_grp, objid
+      FROM tcgtplh
+      FOR ALL ENTRIES IN @lt_rel
+      WHERE recn_grp = @lt_rel-recn_tplh
+      INTO CORRESPONDING FIELDS OF TABLE @lt_tpl.
+
+    SELECT DISTINCT recn, actn, delflg, parkflg, crdat, upddat,
+                    upddats, subid, subcat, authgrp, rem, subchar
+      FROM estrh
+      FOR ALL ENTRIES IN @lt_rel
+      WHERE recn = @lt_rel-recnroot_src
+        AND delflg = @space
+        AND subcat IN ( 'LIST_SUB', 'REAL_SUB', 'REAL_GRP',
+                        'DG_CL_SUB', 'LS_UN_SUB', 'ZCORP_SPEC',
+                        'ZRS_LABEL' )
+      INTO CORRESPONDING FIELDS OF TABLE @lt_src.
+
+    LOOP AT lt_rel ASSIGNING FIELD-SYMBOL(<r>).
+      APPEND INITIAL LINE TO et_data ASSIGNING FIELD-SYMBOL(<o>).
+      READ TABLE lt_dst ASSIGNING FIELD-SYMBOL(<d>)
+        WITH KEY recn = <r>-recnroot_dst.
+      IF sy-subrc = 0.
+        <o>-subidd  = <d>-subid.
+        <o>-subcatd = <d>-subcat.
+        <o>-crdat   = <d>-crdat.
+        <o>-upddat  = <d>-upddat.
+        <o>-upddats = <d>-upddats.
+
+        READ TABLE lt_src ASSIGNING FIELD-SYMBOL(<s>)
+          WITH KEY recn = <r>-recnroot_src.
+        IF sy-subrc = 0.
+          <o>-subids  = <s>-subid.
+          <o>-subcats = <s>-subcat.
+        ENDIF.
+
+        READ TABLE lt_tpl ASSIGNING FIELD-SYMBOL(<t>)
+          WITH TABLE KEY p00 COMPONENTS recn_grp = <r>-recn_tplh.
+        IF sy-subrc = 0.
+          <o>-objid = <t>-objid.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD get_vat.
+    " Exact legacy business behavior depends on ZUT_RFC_DATA_EXT's
+    " BINARY SEARCH and first-lookup choices. Intentionally reuse it rather
+    " than silently replacing those decisions with HANA SQL JOINs.
+    " Execution is synchronous/local, avoiding pRFC overhead and callback
+    " nondeterminism. Source-order-dependent behavior still needs testing.
+
+    DATA: lt_estrh TYPE zut_estrh_t,
+          lt_estvh TYPE zut_estvh_t,
+          lt_estva TYPE zut_estva_t,
+          lt_estdu TYPE zut_estdu_t,
+          lt_ausp  TYPE zut_ausp_t,
+          lt_estph TYPE zut_estph_t,
+          lt_estpp TYPE zut_estpp_t,
+          lt_cabn  TYPE zut_cabn_t,
+          lt_cabnt TYPE zut_cabnt_t,
+          lt_tcg12 TYPE zut_tcg12_t.
+
+    CLEAR et_data.
+    IF it_head IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    " Copy the selected ECC ESTRH subset, preserving RECN/ACTN ordering.
+    LOOP AT it_head ASSIGNING FIELD-SYMBOL(<h>).
+      APPEND INITIAL LINE TO lt_estrh ASSIGNING FIELD-SYMBOL(<eh>).
+      MOVE-CORRESPONDING <h> TO <eh>.
+    ENDLOOP.
+    SORT lt_estrh BY recn actn.
+
+    SELECT DISTINCT recn, actn, delflg, parkflg, crdat, upddat,
+                    recnroot, estcat
+      FROM estvh
+      FOR ALL ENTRIES IN @it_head
+      WHERE recnroot = @it_head-recn AND delflg = @space
+      INTO CORRESPONDING FIELDS OF TABLE @lt_estvh.
+    IF lt_estvh IS INITIAL.
+      RETURN.
+    ENDIF.
+    SORT lt_estvh BY recn actn recnroot.
+
+    SELECT DISTINCT langu, estcat, estnam
+      FROM tcg12
+      FOR ALL ENTRIES IN @lt_estvh
+      WHERE estcat = @lt_estvh-estcat AND langu = @iv_langu
+      INTO CORRESPONDING FIELDS OF TABLE @lt_tcg12.
+    " ECC GT_TCG12 is hashed and never sorted for the RFC binary lookup.
+    " Do not claim a deterministic equivalence if the RFC input type is
+    " also unordered; see parity prerequisites in the attached notes.
+
+    SELECT DISTINCT recn, actn, delflg, parkflg, crdat, upddat,
+                    srsid, ownid, recnroot, recntvh, ord, comprel
+      FROM estva
+      FOR ALL ENTRIES IN @lt_estvh
+      WHERE recntvh = @lt_estvh-recn AND delflg = @space
+      INTO CORRESPONDING FIELDS OF TABLE @lt_estva.
+    IF lt_estva IS INITIAL.
+      RETURN.
+    ENDIF.
+    SORT lt_estva BY recn actn recnroot recntvh.
+
+    LOOP AT lt_estva ASSIGNING FIELD-SYMBOL(<va>).
+      <va>-objek = <va>-recn && <va>-actn.
+    ENDLOOP.
+
+    SELECT DISTINCT recn, actn, delflg, parkflg, crdat, upddat,
+                    recnmst, vaclid, rvlid, exclflg, actvflg
+      FROM estdu
+      FOR ALL ENTRIES IN @lt_estva
+      WHERE recnmst = @lt_estva-recn AND delflg = @space
+      INTO CORRESPONDING FIELDS OF TABLE @lt_estdu.
+    SORT lt_estdu BY recn actn recnmst.
+
+    SELECT DISTINCT objek, atinn, atzhl, mafid, klart, adzhl,
+                    atwrt, atflv, atawe, atflb, ataw1, atcod,
+                    attlv, attlb, lkenz, atsrt
+      FROM ausp
+      FOR ALL ENTRIES IN @lt_estva
+      WHERE objek = @lt_estva-objek
+        AND atinn IS NOT NULL AND atzhl IS NOT NULL
+        AND lkenz = @space
+      INTO CORRESPONDING FIELDS OF TABLE @lt_ausp.
+    IF lt_ausp IS INITIAL.
+      RETURN.
+    ENDIF.
+    SORT lt_ausp BY objek atinn atzhl mafid klart adzhl.
+    LOOP AT lt_ausp ASSIGNING FIELD-SYMBOL(<a>).
+      <a>-phrid = <a>-atwrt+6(15).
+    ENDLOOP.
+
+    SELECT DISTINCT atinn, adzhl, atnam, lkenz
+      FROM cabn
+      FOR ALL ENTRIES IN @lt_ausp
+      WHERE atinn = @lt_ausp-atinn
+        AND adzhl = @lt_ausp-adzhl
+        AND lkenz = @space
+      INTO CORRESPONDING FIELDS OF TABLE @lt_cabn.
+    SORT lt_cabn BY atinn adzhl.
+
+    IF lt_cabn IS NOT INITIAL.
+      SELECT DISTINCT atinn, spras, adzhl, atbez
+        FROM cabnt
+        FOR ALL ENTRIES IN @lt_cabn
+        WHERE atinn = @lt_cabn-atinn
+          AND spras = @iv_langu
+          AND adzhl = @lt_cabn-adzhl
+        INTO CORRESPONDING FIELDS OF TABLE @lt_cabnt.
+      SORT lt_cabnt BY atinn spras adzhl.
+    ENDIF.
+
+    SELECT DISTINCT recn, actn, delflg, parkflg, crdat, upddat,
+                    phrid, catpin
+      FROM estph
+      FOR ALL ENTRIES IN @lt_ausp
+      WHERE phrid = @lt_ausp-phrid
+        AND catpin = 'CUST' AND delflg = @space
+      INTO CORRESPONDING FIELDS OF TABLE @lt_estph.
+    SORT lt_estph BY recn actn.
+
+    IF lt_estph IS NOT INITIAL.
+      SELECT DISTINCT recn, actn, delflg, parkflg, crdat, upddat,
+                      recnroot, langu, phrcode, phrtext
+        FROM estpp
+        FOR ALL ENTRIES IN @lt_estph
+        WHERE recnroot = @lt_estph-recn
+          AND langu = 'E' AND delflg = @space
+        INTO CORRESPONDING FIELDS OF TABLE @lt_estpp.
+      SORT lt_estpp BY recn actn.
+    ENDIF.
+
+    " Existing RFC is required. Its signature is retained verbatim.
+    CALL FUNCTION 'ZUT_RFC_DATA_EXT'
+      EXPORTING
+        iv_begin = 1
+        iv_end   = lines( lt_estva )
+        it_estrh = lt_estrh
+        it_estva = lt_estva
+        it_ausp  = lt_ausp
+        it_estph = lt_estph
+        it_estpp = lt_estpp
+        it_estvh = lt_estvh
+        it_estdu = lt_estdu
+        it_cabn  = lt_cabn
+        it_cabnt = lt_cabnt
+        it_tcg12 = lt_tcg12
+      IMPORTING
+        et_vat   = et_data.
+  ENDMETHOD.
+ENDCLASS.
