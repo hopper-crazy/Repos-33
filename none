@@ -1,70 +1,22 @@
-REPORT zdownload_itab.
+DATA: gt_csv TYPE STANDARD TABLE OF string,
+      lv_line TYPE string.
 
-TYPES: BEGIN OF ty_data,
-         matnr TYPE matnr,
-         maktx TYPE maktx,
-         menge TYPE p LENGTH 13 DECIMALS 3,
-         meins TYPE meins,
-       END OF ty_data.
+APPEND `Material Number,Description,Quantity,Unit` TO gt_csv.
+LOOP AT gt_data INTO DATA(ls_data).
+  lv_line = |{ ls_data-matnr },{ ls_data-maktx },{ ls_data-menge },{ ls_data-meins }|.
+  APPEND lv_line TO gt_csv.
+ENDLOOP.
+" then call gui_download with data_tab = gt_csv, no fieldnames
 
-CONSTANTS gc_sep TYPE c LENGTH 1 VALUE ','.   " use ';' if Excel still shows one column
 
-DATA: gt_data TYPE STANDARD TABLE OF ty_data WITH EMPTY KEY,
-      gt_csv  TYPE STANDARD TABLE OF string WITH EMPTY KEY,
-      gv_path TYPE string,
-      gv_file TYPE string,
-      gv_full TYPE string,
-      lv_menge TYPE c LENGTH 20.
+TYPES: BEGIN OF ty_header,
+         label TYPE c LENGTH 40,
+       END OF ty_header.
 
-START-OF-SELECTION.
+DATA gt_header TYPE STANDARD TABLE OF ty_header WITH EMPTY KEY.
 
-  " --- sample data (replace with your SELECT) ---
-  gt_data = VALUE #(
-    ( matnr = 'MAT001' maktx = 'Steel Rod'   menge = '10.500' meins = 'KG' )
-    ( matnr = 'MAT002' maktx = 'Copper, Wire' menge = '25.000' meins = 'M' ) ).
-
-  " --- header row with custom labels ---
-  APPEND |Material Number{ gc_sep }Description{ gc_sep }Quantity{ gc_sep }Unit| TO gt_csv.
-
-  " --- data rows ---
-  LOOP AT gt_data INTO DATA(ls_data).
-    WRITE ls_data-menge TO lv_menge DECIMALS 3 NO-GROUPING LEFT-JUSTIFIED.
-    DATA(lv_maktx) = replace( val = ls_data-maktx sub = `"` with = `""` occ = 0 ).
-    APPEND |{ ls_data-matnr }{ gc_sep }"{ lv_maktx }"{ gc_sep }{ lv_menge }{ gc_sep }{ ls_data-meins }| TO gt_csv.
-  ENDLOOP.
-
-  " --- ask where to save ---
-  cl_gui_frontend_services=>file_save_dialog(
-    EXPORTING
-      default_extension = 'csv'
-      default_file_name = 'material_data'
-      file_filter       = 'CSV files (*.csv)|*.csv'
-    CHANGING
-      filename = gv_file
-      path     = gv_path
-      fullpath = gv_full
-    EXCEPTIONS
-      OTHERS   = 1 ).
-
-  IF sy-subrc <> 0 OR gv_full IS INITIAL.
-    MESSAGE 'Download cancelled' TYPE 'S'.
-    RETURN.
-  ENDIF.
-
-  " --- download ---
-  cl_gui_frontend_services=>gui_download(
-    EXPORTING
-      filename = gv_full
-      filetype = 'ASC'
-      codepage = '4110'          " UTF-8
-      bom      = abap_true       " lets Excel read UTF-8 correctly
-    CHANGING
-      data_tab = gt_csv
-    EXCEPTIONS
-      OTHERS   = 1 ).
-
-  IF sy-subrc = 0.
-    MESSAGE 'File downloaded successfully' TYPE 'S'.
-  ELSE.
-    MESSAGE 'Download failed' TYPE 'E'.
-  ENDIF.
+gt_header = VALUE #(
+  ( label = 'Material Number' )
+  ( label = 'Description' )
+  ( label = 'Quantity' )
+  ( label = 'Unit' ) ).
